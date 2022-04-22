@@ -11,7 +11,7 @@ void __M_Assert(const char* expr_str, unsigned char expr, const char* file, int 
     }
 }
 
-void __M_BreakMsg(const char* expr_str, unsigned char expr, const char* file, int line, const char* msg)
+void __M_Error(const char* expr_str, unsigned char expr, const char* file, int line, const char* msg)
 {
     (void)expr;
     fprintf(stderr, "Assert failed:\t %s \nExpression:\t%s\nSource:\t\t%s, line %d\n", msg, expr_str,file, line);
@@ -19,7 +19,7 @@ void __M_BreakMsg(const char* expr_str, unsigned char expr, const char* file, in
     abort();
 }
 
-void __M_Msg(const char* expr_str, unsigned char expr, const char* file, int line, const char* msg)
+void __M_Warning(const char* expr_str, unsigned char expr, const char* file, int line, const char* msg)
 {
     (void)expr;
     fprintf(stderr, "Assert failed:\t %s \nExpression:\t%s\nSource:\t\t%s, line %d\n", msg, expr_str,file, line);
