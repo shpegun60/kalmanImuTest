@@ -14,5 +14,5 @@ https://www.mdpi.com/1424-8220/17/9/2146
 
 ## Kalman theory
 <p align="center">
-  <img src="kalman_filter/Capture.PNG" width="350" title="hover text">
+  <img src="kalman_filter/Capture.PNG" width="650" title="hover text">
 </p>
