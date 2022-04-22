@@ -153,31 +153,31 @@ int imuProceed(IMU10Dof* imu, IMUinput * data)
      * ***************************************************
      */
 
-    // update F
-    imu->kalman->F->data[0][1] = data->dt;
-    imu->kalman->F->data[2][3] = data->dt;
-    imu->kalman->F->data[4][5] = data->dt;
+    // update F, F_t
+    imu->kalman->F_t->data[1][0] = imu->kalman->F->data[0][1] = data->dt;
+    imu->kalman->F_t->data[3][2] = imu->kalman->F->data[2][3] = data->dt;
+    imu->kalman->F_t->data[5][4] = imu->kalman->F->data[4][5] = data->dt;
 
     imu->halfT = 0.5f * data->dt;
     imu->Tx = imu->halfT * data->gx;
     imu->Ty = imu->halfT * data->gy;
     imu->Tz = imu->halfT * data->gz;
 
-    imu->kalman->F->data[6][7] = -imu->Tx;
-    imu->kalman->F->data[6][8] = -imu->Ty;
-    imu->kalman->F->data[6][9] = -imu->Tz;
+    imu->kalman->F_t->data[7][6] = imu->kalman->F->data[6][7] = -imu->Tx;
+    imu->kalman->F_t->data[8][6] = imu->kalman->F->data[6][8] = -imu->Ty;
+    imu->kalman->F_t->data[9][6] = imu->kalman->F->data[6][9] = -imu->Tz;
 
-    imu->kalman->F->data[7][6] = imu->Tx;
-    imu->kalman->F->data[7][8] = imu->Tz;
-    imu->kalman->F->data[7][9] = -imu->Ty;
+    imu->kalman->F_t->data[6][7] = imu->kalman->F->data[7][6] = imu->Tx;
+    imu->kalman->F_t->data[8][7] = imu->kalman->F->data[7][8] = imu->Tz;
+    imu->kalman->F_t->data[9][7] = imu->kalman->F->data[7][9] = -imu->Ty;
 
-    imu->kalman->F->data[8][6] = imu->Ty;
-    imu->kalman->F->data[8][7] = -imu->Tz;
-    imu->kalman->F->data[8][9] = imu->Tx;
+    imu->kalman->F_t->data[6][8] = imu->kalman->F->data[8][6] = imu->Ty;
+    imu->kalman->F_t->data[7][8] = imu->kalman->F->data[8][7] = -imu->Tz;
+    imu->kalman->F_t->data[9][8] = imu->kalman->F->data[8][9] = imu->Tx;
 
-    imu->kalman->F->data[9][6] = imu->Tz;
-    imu->kalman->F->data[9][7] = imu->Ty;
-    imu->kalman->F->data[9][8] = -imu->Tx;
+    imu->kalman->F_t->data[6][9] = imu->kalman->F->data[9][6] = imu->Tz;
+    imu->kalman->F_t->data[7][9] = imu->kalman->F->data[9][7] = imu->Ty;
+    imu->kalman->F_t->data[8][9] = imu->kalman->F->data[9][8] = -imu->Tx;
 
     // update G
     imu->quadHalfT = (data->dt * data->dt) * 0.5f;
@@ -200,6 +200,8 @@ int imuProceed(IMU10Dof* imu, IMUinput * data)
      * Update Step 2
      * ***************************************************
      */
+
+
 
 
 
