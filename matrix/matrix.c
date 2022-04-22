@@ -56,6 +56,30 @@ Mat *matrixCreate(unsigned int r, unsigned int c)
     return m;
 }
 
+int matrixInitFromArr(Mat* A, MAT_TYPE* arr)
+{
+    M_Assert_Break((A == NULL || arr == NULL), "matrixInitFromArr: incorrect input values", return MAT_FAIL);
+    for(unsigned int i = 0; i < A->row; ++i) {
+        for(unsigned int j = 0; j < A->col; ++j) {
+            A->data[i][j] =  *(arr + (i * A->col) + j);
+        }
+    }
+    return MAT_SUCC;
+}
+
+int matrixInitFromArr_T(Mat* A, MAT_TYPE* arr)
+{
+    M_Assert_Break((A == NULL || arr == NULL), "matrixInitFromArr_T: incorrect input values", return MAT_FAIL);
+    for(unsigned int i = 0; i < A->row; ++i) {
+        for(unsigned int j = 0; j < A->col; ++j) {
+            A->data[i][j] =  *(arr + (j * A->row) + i);
+        }
+    }
+    return MAT_SUCC;
+}
+
+
+
 int getResultRawSize(Mat* A, Mat* B, unsigned int * resRaw, unsigned int * resCall)
 {
     M_Assert_Break((!A || !B || !resRaw || !resCall), "getResultRawSize: incorrect input values", return MAT_FAIL);

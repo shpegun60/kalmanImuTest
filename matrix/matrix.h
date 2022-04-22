@@ -23,6 +23,9 @@ int showmat(Mat* A, char * name);
 
 /* make a zero matrix of given dimensions */
 Mat *matrixCreate(unsigned int r, unsigned int c);
+int matrixInitFromArr(Mat* A, MAT_TYPE* arr);
+
+int matrixInitFromArr_T(Mat* A, MAT_TYPE* arr);
 int getResultRawSize(Mat* A, Mat* B, unsigned int * resRaw, unsigned int * resCall);
 Mat *createResultMulMatrix(Mat* A, Mat* B);
 Mat *createResultTransMatrix(Mat* A);

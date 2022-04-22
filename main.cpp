@@ -6,16 +6,12 @@ extern "C" {
 
 #include "matrix.h"
 #include "matrix_test.h"
+#include "imu.h"
 }
 
 #include <time.h>
 
 using namespace std;
-
-void kalmanInit(Mat* X_est, Mat* P_est, Mat* F, Mat* F_t, Mat* G, Mat* Q, Mat* R, Mat* H, Mat* H_t)
-{
-    return;
-}
 
 int main()
 {
@@ -23,17 +19,35 @@ int main()
 
     testMatrix();
 
-    KalmanFilter* kalman = kalmanCreate(kalmanInit, 10, 4, 3);
+    MAT_TYPE Q_init[10][10] =
+    {
+        {0, 0,  0,  0,  0,  0,  0,  0,  0,  0},
+        {0, 0,  0,  0,  0,  0,  0,  0,  0,  0},
+        {0, 0,  0,  0,  0,  0,  0,  0,  0,  0},
+        {0, 0,  0,  0,  0,  0,  0,  0,  0,  0},
+        {0, 0,  0,  0,  0,  0,  0,  0,  0,  0},
+        {0, 0,  0,  0,  0,  0,  0,  0,  0,  0},
+        {0, 0,  0,  0,  0,  0,  0,  0,  0,  0},
+        {0, 0,  0,  0,  0,  0,  0,  0,  0,  0},
+        {0, 0,  0,  0,  0,  0,  0,  0,  0,  0},
+        {0, 0,  0,  0,  0,  0,  0,  0,  0,  0}
+    };
+
+    MAT_TYPE R_init[4][4] =
+    {
+        {0, 0,  0,  0},
+        {0, 0,  0,  0},
+        {0, 0,  0,  0},
+        {0, 0,  0,  0}
+    };
+
+    IMU10Dof* imu = imuCreate(10, Q_init[0], R_init[0]);
 
 
-    for(int i =0; i < 100; ++i) {
-        kalmanPredict(kalman);
-        kalmanUpdate(kalman);
-    }
 
-        printf("---------------- KALMAN PRINT----------------------------------- \n\n");
-        printkalman(kalman);
-        printf("\nsizeof Kalman: %d\n", (int)sizeof(KalmanFilter));
+    printf("---------------- KALMAN PRINT----------------------------------- \n\n");
+    printkalman(imu->kalman);
+    printf("\nsizeof Kalman: %d\n", (int)sizeof(KalmanFilter));
 
     return 0;
 }

@@ -7,8 +7,7 @@ KalmanFilter* kalmanCreate(initKalmanFunction userInit, unsigned int x, unsigned
 {
     M_Assert_BreakSaveCheck((x == 0 || z == 0), "kalmanCreate: Give me positive values for dimensions genius", return NULL);
 
-    KalmanFilter* m;
-    m = (KalmanFilter*)malloc(sizeof(KalmanFilter));
+    KalmanFilter* m = (KalmanFilter*)malloc(sizeof(KalmanFilter));
     M_Assert_BreakSaveCheck((m == NULL), "kalmanCreate: no memory for allocation structure", return NULL);
 
     ////    * Result:
