@@ -12,7 +12,7 @@ DOI:10.3390/s17092146
 <br>
 https://www.mdpi.com/1424-8220/17/9/2146
 
-## Kalman theory
+## Kalman theory:
 <p align="center">
   <img src="kalman_filter/Capture.PNG" width="850" title="hover text">
 </p>
