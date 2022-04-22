@@ -6,4 +6,6 @@ it`s qt project for test and debug kalman filter with coordinate, velocity and q
 Geometrically-Intuitive Correction Algorithm"
 <br>
 Kaiqiang Feng, Jie Li, Xiaoming Zhang, Chong Shen, Yu Bi, Tao Zheng and Jun Liu
+<br>
+<br>
 DOI:10.3390/s17092146
