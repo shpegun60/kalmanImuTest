@@ -12,7 +12,11 @@
 // Fast inverse square-root
 // See: http://en.wikipedia.org/wiki/Fast_inverse_square_root
 
-float invSqrt(float x) {
+#ifdef FAST_CALCULATE_INV_SQRT
+static_assert (sizeof(long) == 4, "need rewrite platform depend invSqrt function or commit FAST_CALCULATE_INV_SQRT because type long != 4");
+#endif
+
+float invSqrt(const float x) {
     float halfx = 0.5f * x;
     float y = x;
     long i = *(long *)&y;
@@ -21,6 +25,58 @@ float invSqrt(float x) {
     y = y * (1.5f - (halfx * y * y));
     y = y * (1.5f - (halfx * y * y));
     return y;
+}
+
+float fastSqrt(const float n)
+{
+    /*
+     * *********************************************************************************************
+     * 1) HIGH precision for math.
+     *  -Advantages:
+     *  * The convergence of the function is high enough to be used in applications other than games.
+     *
+     *  -Disadvantages:
+     *  * Computing times are much larger.
+     *  * The square root of “0” is a number very close to “0” but never “0”.
+     *  * The division operation is the bottleneck in this function. because the division operation is more expensive than the other arithmetic operations of Arithmetic Logic Units (ALU)
+     **********************************************************************************************
+    */
+    union {int i; float f;} u;
+    u.i = 0x1FB5AD00 + (*(int*)&n >> 1);
+    u.f = n / u.f + u.f;
+    return n / u.f + u.f * 0.25f;
+
+    /*
+     ********************************************************************************************
+     * 2) LOW precision for games. (less then origin square)
+     * -Advantages:
+     *      * The convergence of the function is greater than that of the first method.
+     *      * Generates times equal to or greater than the first method.
+     *
+     * -Disadvantages:
+     *      * The square root of “0” is a number very close to “0” but never “0”.
+     *******************************************************************************************
+    */
+    //    union{int i; float f;} u;
+    //    u.i = 0x5F375A86 - (*(int*)&n >> 1);
+    //    return ((int)3 - n * u.f * u.f) * n * u.f * 0.5f;
+
+    /*
+     * ******************************************************************************************
+     * 3) LOW precision for games. (more than origin square)
+     *  -Advantages:
+     *      * When Root of 0 is calculated the function returns 0.
+     *      * The convergence of the function is acceptable enough for games.
+     *      * It generates very good times.
+     *      * The Reciprocal of the root can be calculated by removing the second “n” from the third line. According to the property of: 1 / sqrt (n) * n = sqrt (n).
+     *
+     *  -Disadvantages:
+     *      * Convergence decreases when the root to be calculated is very large.
+     * *****************************************************************************************
+     */
+    //    union {int i; float f;} u;
+    //    u.i = 0x2035AD0C + (*(int*)&n >> 1);
+    //    return n / u.f + u.f * 0.25f;
 }
 
 //-------------------------------------------------------------------------------------------
@@ -58,7 +114,7 @@ bool Quaternion_equal(Quaternion* q1, Quaternion* q2)
 void Quaternion_fprint(FILE* file, Quaternion* q)
 {
     fprintf(file, "(%.3f, %.3f, %.3f, %.3f)",
-        q->w, q->v[0], q->v[1], q->v[2]);
+            q->w, q->v[0], q->v[1], q->v[2]);
 }
 
 
@@ -173,20 +229,24 @@ void Quaternion_conjugate(Quaternion* q, Quaternion* output)
 float Quaternion_norm(Quaternion* q)
 {
     assert(q != NULL);
+#ifdef FAST_CALCULATE_INV_SQRT
+    return fastSqrt(q->w*q->w + q->v[0]*q->v[0] + q->v[1]*q->v[1] + q->v[2]*q->v[2]);
+#else
     return sqrt(q->w*q->w + q->v[0]*q->v[0] + q->v[1]*q->v[1] + q->v[2]*q->v[2]);
+#endif
 }
 
 void Quaternion_normalize(Quaternion* q, Quaternion* output)
 {
     assert(output != NULL);
 #ifdef FAST_CALCULATE_INV_SQRT
-         float inverse_len = invSqrt(q->w*q->w + q->v[0]*q->v[0] + q->v[1]*q->v[1] + q->v[2]*q->v[2]);
+    float inverse_len = invSqrt(q->w*q->w + q->v[0]*q->v[0] + q->v[1]*q->v[1] + q->v[2]*q->v[2]);
 #else
-        float inverse_len = 1.0 / Quaternion_norm(q);
+    float inverse_len = 1.0 / Quaternion_norm(q);
 #endif
     Quaternion_set(
-            q->w * inverse_len,
-            q->v[0] * inverse_len,
+                q->w * inverse_len,
+                q->v[0] * inverse_len,
             q->v[1] * inverse_len,
             q->v[2] * inverse_len,
             output);
@@ -212,6 +272,23 @@ void Quaternion_multiply(Quaternion* q1, Quaternion* q2, Quaternion* output)
     *output = result;
 }
 
+void Quaternion_multiply_to_array(Quaternion* q1, Quaternion* q2, float* output)
+{
+    assert(output != NULL);
+
+    /*
+    Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/arithmetic/index.htm
+             a*e - b*f - c*g - d*h
+        + i (b*e + a*f + c*h- d*g)
+        + j (a*g - b*h + c*e + d*f)
+        + k (a*h + b*g - c*f + d*e)
+    */
+    output[0] =    q1->w   *q2->w    - q1->v[0]*q2->v[0] - q1->v[1]*q2->v[1] - q1->v[2]*q2->v[2];
+    output[1] = q1->v[0]*q2->w    + q1->w   *q2->v[0] + q1->v[1]*q2->v[2] - q1->v[2]*q2->v[1];
+    output[2] = q1->w   *q2->v[1] - q1->v[0]*q2->v[2] + q1->v[1]*q2->w    + q1->v[2]*q2->v[0];
+    output[3] = q1->w   *q2->v[2] + q1->v[0]*q2->v[1] - q1->v[1]*q2->v[0] + q1->v[2]*q2->w   ;
+}
+
 void Quaternion_rotate(Quaternion* q, float v[3], float output[3])
 {
     assert(output != NULL);
@@ -234,14 +311,14 @@ void Quaternion_rotate(Quaternion* q, float v[3], float output[3])
     // p2.z = 2*x*z*p1.x + 2*y*z*p1.y + z*z*p1.z - 2*w*y*p1.x - y*y*p1.z + 2*w*x*p1.y - x*x*p1.z + w*w*p1.z;
 
     result[0] = ww*v[0] + 2*wy*v[2] - 2*wz*v[1] +
-                xx*v[0] + 2*xy*v[1] + 2*xz*v[2] -
-                zz*v[0] - yy*v[0];
+            xx*v[0] + 2*xy*v[1] + 2*xz*v[2] -
+            zz*v[0] - yy*v[0];
     result[1] = 2*xy*v[0] + yy*v[1] + 2*yz*v[2] +
-                2*wz*v[0] - zz*v[1] + ww*v[1] -
-                2*wx*v[2] - xx*v[1];
+            2*wz*v[0] - zz*v[1] + ww*v[1] -
+            2*wx*v[2] - xx*v[1];
     result[2] = 2*xz*v[0] + 2*yz*v[1] + zz*v[2] -
-                2*wy*v[0] - yy*v[2] + 2*wx*v[1] -
-                xx*v[2] + ww*v[2];
+            2*wy*v[0] - yy*v[2] + 2*wx*v[1] -
+            xx*v[2] + ww*v[2];
 
     // Copy result to output
     output[0] = result[0];
@@ -264,9 +341,9 @@ void Quaternion_slerp(Quaternion* q1, Quaternion* q2, float t, Quaternion* outpu
 
     float halfTheta = acos(cosHalfTheta);
 #ifdef FAST_CALCULATE_INV_SQRT
-          float sinHalfTheta = invSqrt(1.0 - cosHalfTheta*cosHalfTheta);
+    float sinHalfTheta = invSqrt(1.0 - cosHalfTheta*cosHalfTheta);
 #else
-         float sinHalfTheta = 1.0 / sqrt(1.0 - cosHalfTheta*cosHalfTheta);
+    float sinHalfTheta = 1.0 / sqrt(1.0 - cosHalfTheta*cosHalfTheta);
 #endif
     // If theta = 180 degrees then result is not fully defined
     // We could rotate around any axis normal to q1 or q2

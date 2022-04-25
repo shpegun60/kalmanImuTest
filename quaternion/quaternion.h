@@ -31,6 +31,9 @@ typedef struct {
     float v[3];    /**< Vector part [0]==> i(Ex), [1]==> j(Ey), [2]==> k(Ez)*/
 } Quaternion;
 
+
+float invSqrt(const float x);
+float fastSqrt(const float n);
 /**
  * Sets the given values to the output quaternion.
  */
@@ -133,6 +136,7 @@ void Quaternion_conjugate(Quaternion* q, Quaternion* output);
  *      The orientation to be rotated.
  */
 void Quaternion_multiply(Quaternion* q1, Quaternion* q2, Quaternion* output);
+void Quaternion_multiply_to_array(Quaternion* q1, Quaternion* q2, float* output);
 
 /**
  * Applies quaternion rotation to a given vector.

@@ -4,7 +4,7 @@
 #include "test_quaternion.h"
 #include <assert.h>
 
-#define TO_RAD(x) (x / 180.0 * M_PI)
+#define TO_RAD(x) ((x) / 180.0 * M_PI)
 
 void ASSERT_SAME_float(char* description, float x, float y)
 {
