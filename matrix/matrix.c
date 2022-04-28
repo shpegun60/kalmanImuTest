@@ -21,7 +21,7 @@ int showmat(Mat* A, char * name)
     printf("[");
     for(unsigned int i = 0; i < A->row; i++){
         for (unsigned int j = 0; j < A->col; j++) {
-            sprintf(txt, "\t%.5f", (float)A->data[i][j]);
+            sprintf(txt, "\t%.10f", (float)A->data[i][j]);
             printf("%s", txt);
         }
         if(i == (A->row - 1)) {

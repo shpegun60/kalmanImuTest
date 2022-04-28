@@ -14,8 +14,6 @@ extern "C" {
 
 using namespace std;
 
-
-
 int main()
 {
     test_quaternion();
@@ -23,12 +21,12 @@ int main()
     testMatrix();
 
     float sR = 0.0015;
-    float sQR = 1;
+    float sQR = 1e-6;
     float sQx = 0.001;
     float sQy = 0.001;
     float sQz = 0.001;
 
-    float dt = 10;
+    float dt = 10/1000;
 
     float T11 = (dt * dt * dt * dt) / 4.0;
     float T12 = (dt * dt * dt) / 2.0;
