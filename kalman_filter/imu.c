@@ -3,6 +3,8 @@
 #include "smart_assert/smart_assert.h"
 
 
+#define TO_RAD(x) (((x) / 180.0) * M_PI)
+
 /*
  *
  *           | x | xh| y | yh| z | zh| q0| q1| q1| q3|
@@ -144,19 +146,45 @@ IMU10Dof* imuCreate(float const_u, MAT_TYPE dt, MAT_TYPE* Q10x10, MAT_TYPE* R4x4
     matrixInitFromArr(imu->kalman->Q, Q10x10);
     matrixInitFromArr(imu->kalman->R, R4x4);
     imu->const_u = const_u;
+
+
+    // init else vectors
+    for(unsigned i = 0; i < 3; ++i) {
+        imu->grav[i] = 0.0f;
+        imu->rotateAxisErr[i] = 0.0f;
+        imu->grav_norm[i] = 0.0f;
+    }
+
+    imu->angleErr = 0.0f;
+    Quaternion_setIdentity(&imu->q_ae);
+    Quaternion_setIdentity(&imu->q_a);
+
+    imu->Tx = 0.0f;
+    imu->Ty = 0.0f;
+    imu->Tz = 0.0f;
+    imu->halfT = 0.0f;
+    imu->quadHalfT = 0.0f;
+    imu->recipNorm = 0.0f;
+
+
+    // only debug values
+    imu->quat[0] = 1.0f;
+    imu->quat[1] = 0.0f;
+    imu->quat[2] = 0.0f;
+    imu->quat[3] = 0.0f;
     return imu;
 }
 
 
-static void computeGravVector(const float q0, const float q1, const float q2, const float q3, float* const grav)
+__attribute__((unused)) static void computeGravVector(const float q0, const float q1, const float q2, const float q3, float* const grav)
 {
     M_Assert_Break((grav == NULL), "computeGravVector: grav vector is null pointer", return);
-    grav[0] = 2.0f * (q1 * q3 - q0 * q2);
-    grav[1] = 2.0f * (q0 * q1 + q2 * q3);
-    grav[2] = (q0 * q0 - q1 * q1 - q2 *q2 + q3 * q3);
+    grav[0] = 2.0f * ((q1 * q3) - (q0 * q2));
+    grav[1] = 2.0f * ((q0 * q1) + (q2 * q3));
+    grav[2] = ((q0 * q0) - (q1 * q1) - (q2 *q2) + (q3 * q3));
 }
 
-static float vecMulCrossAngle(const float* const a, const float* const b, float* const r)
+__attribute__((unused)) static float vecMulCrossAngle(const float* const a, const float* const b, float* const r)
 {
     M_Assert_Break((a == NULL || b == NULL || r == NULL), "vecMulCross: vectors is null ptr", return 0.0);
 
@@ -172,10 +200,20 @@ static float vecMulCrossAngle(const float* const a, const float* const b, float*
     return angle;
 }
 
-
-int imuProceed(IMU10Dof* imu, IMUinput * data)
+__attribute__((unused)) static float accelCalcPitch(float x, float y, float z)
 {
+    return atan2(y, fastSqrt(x * x + z * z));
+}
 
+__attribute__((unused)) static float accelCalcRoll(float x, float y, float z)
+{
+    return -atan2(x, fastSqrt(y * y + z * z));
+}
+
+
+int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
+{
+     M_Assert_Break((imu == NULL || data == NULL), "imuProceed: vectors is null ptr", return KALMAN_ERR);
     /*
      * ***************************************************
      * Predict step 1
@@ -207,9 +245,8 @@ int imuProceed(IMU10Dof* imu, IMUinput * data)
     imu->kalman->G->data[5][2] = imu->kalman->G->data[3][1] = imu->kalman->G->data[1][0] = data->dt;
 
     // update U
-
     for (unsigned int i  = 0; i < 3; ++i) {
-        imu->kalman->U->data[i][0] = data->a[i] - imu->grav[i];
+        imu->kalman->U->data[i][0] = data->a[i] - (imu->grav[i] * 9.8f);
     }
 
     kalmanPredict(imu->kalman);
@@ -220,6 +257,8 @@ int imuProceed(IMU10Dof* imu, IMUinput * data)
      * ***************************************************
      */
 
+    // first type of update --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
     // normalize accel
     imu->recipNorm = invSqrt(data->a[0] * data->a[0] + data->a[1] * data->a[1] + data->a[2] * data->a[2]);
     data->a[0] *= imu->recipNorm;
@@ -227,15 +266,27 @@ int imuProceed(IMU10Dof* imu, IMUinput * data)
     data->a[2] *= imu->recipNorm;
 
 
-
-    imu->angleErr = vecMulCrossAngle(data->a, imu->grav_norm, imu->rotateAxisErr);                      // computation vector n_a = a_measured × a_calculated; and ∆θa = acos(a_measured * a_calculated)
-    Quaternion_fromAxisAngle(imu->rotateAxisErr, (imu->angleErr * imu->const_u), &imu->q_ae);           // computation error quaternion q_ae
-    Quaternion_multiply_to_array(&imu->q_ae, &imu->q_a, imu->kalman->Z->data[0]);                       // quaternion multiplication qa = q_ae x qk
+    imu->angleErr = vecMulCrossAngle(data->a, imu->grav_norm, imu->rotateAxisErr);             // computation vector n_a = a_measured × a_calculated; and ∆θa = acos(a_measured * a_calculated)
+    Quaternion_fromAxisAngle(imu->rotateAxisErr, (imu->angleErr * imu->const_u), &imu->q_ae);  // computation error quaternion q_ae
+    Quaternion_multiply_to_arrayLN(&imu->q_ae, &imu->q_a, imu->kalman->Z->data);
     kalmanUpdate(imu->kalman);
 
+//    // second type of update --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+//        float e0[3] = {0, };
+//        e0[0] = calcPitch(data->a[0],data->a[1],data->a[2]);
+//        e0[1] = calcRoll(data->a[0],data->a[1],data->a[2]);
+//        e0[2] = 0;
+//        Quaternion_fromEulerZYX(e0, &imu->q_ae);
+//        imu->kalman->Z->data[0][0] = imu->q_ae.w;
+//        imu->kalman->Z->data[1][0] = imu->q_ae.v[0];
+//        imu->kalman->Z->data[2][0] = imu->q_ae.v[1];
+//        imu->kalman->Z->data[3][0] = imu->q_ae.v[2];
+//        kalmanUpdate(imu->kalman);
+    //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
     computeGravVector(imu->kalman->X_est->data[6][0], imu->kalman->X_est->data[7][0], imu->kalman->X_est->data[8][0], imu->kalman->X_est->data[9][0], imu->grav); // a_calculated
+
     //a_calculated normalize
     imu->recipNorm = invSqrt(imu->grav[0] * imu->grav[0] + imu->grav[1] * imu->grav[1] + imu->grav[2] * imu->grav[2]);
     imu->grav_norm[0] = imu->grav[0] * imu->recipNorm;
@@ -245,6 +296,61 @@ int imuProceed(IMU10Dof* imu, IMUinput * data)
     Quaternion_set(imu->kalman->X_est->data[6][0], imu->kalman->X_est->data[7][0], imu->kalman->X_est->data[8][0], imu->kalman->X_est->data[9][0], &imu->q_a); // qk
     return KALMAN_OK;
 }
+
+
+
+////*************************************************************************************************************************************************************************************************************
+//int imuProceed(IMU10Dof* imu, IMUinput * data) // only quaternion generate from gyroscope
+//{
+
+//    imu->halfT = 0.5f * data->dt;
+//    imu->Tx = imu->halfT * data->g[0];
+//    imu->Ty = imu->halfT * data->g[1];
+//    imu->Tz = imu->halfT * data->g[2];
+//    imu->quat[0] = imu->quat[0] - (imu->Tx * imu->quat[1]) - (imu->Ty * imu->quat[2]) - (imu->Tz * imu->quat[3]);
+//    imu->quat[1] = imu->quat[1] + (imu->Tx * imu->quat[0]) + (imu->Tz * imu->quat[2]) - (imu->Ty * imu->quat[3]);
+//    imu->quat[2] = imu->quat[2] + (imu->Ty * imu->quat[0]) - (imu->Tz * imu->quat[1]) + (imu->Tx * imu->quat[3]);
+//    imu->quat[3] = imu->quat[3] + (imu->Tz * imu->quat[0]) + (imu->Ty * imu->quat[1]) - (imu->Tx * imu->quat[2]);
+//    Quaternion_set(imu->quat[0], imu->quat[1], imu->quat[2], imu->quat[3], &imu->q_a);
+
+
+
+////    Quaternion_set(0.0f, data->g[0], data->g[1], data->g[2], &imu->q_ae);
+////    Quaternion_multiply(&imu->q_a, &imu->q_ae, &imu->RES);
+////    Quaternion_scalar_multiplication(&imu->RES, imu->halfT, &imu->RES);
+////    Quaternion_add(&imu->q_a, &imu->RES, &imu->q_a);
+//    return KALMAN_OK;
+//}
+
+
+//////*************************************************************************************************************************************************************************************************************
+//int imuProceed(IMU10Dof* imu, IMUinput * data)  // only quaternion generate from accelerometer (yaw pith raw)
+//{
+
+//    float e0[3] = {0, };
+//    e0[0] = calcPitch(data->a[0],data->a[1],data->a[2]);
+//    e0[1] = calcRoll(data->a[0],data->a[1],data->a[2]);
+//    e0[2] = 0;
+
+//    Quaternion_fromEulerZYX(e0, &imu->q_a);
+//    Quaternion_normalize(&imu->q_a, &imu->q_a);
+//    return KALMAN_OK;
+//}
+
+
+//////*************************************************************************************************************************************************************************************************************
+//int imuProceed(IMU10Dof* imu, IMUinput * data)  // only quaternion generate from accelerometer (yaw pith raw)
+//{
+
+//    float e0[3] = {0, };
+//    e0[0] = calcPitch(data->a[0],data->a[1],data->a[2]);
+//    e0[1] = calcRoll(data->a[0],data->a[1],data->a[2]);
+//    e0[2] = 0;
+
+//    Quaternion_fromEulerZYX(e0, &imu->q_a);
+//    Quaternion_normalize(&imu->q_a, &imu->q_a);
+//    return KALMAN_OK;
+//}
 
 
 

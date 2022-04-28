@@ -136,7 +136,9 @@ void Quaternion_conjugate(Quaternion* q, Quaternion* output);
  *      The orientation to be rotated.
  */
 void Quaternion_multiply(Quaternion* q1, Quaternion* q2, Quaternion* output);
-void Quaternion_multiply_to_array(Quaternion* q1, Quaternion* q2, float* output);
+void Quaternion_multiply_to_arrayLN(Quaternion* q1, Quaternion* q2, float** output);
+void Quaternion_scalar_multiplication(Quaternion* q, float s, Quaternion* Dest);
+void Quaternion_add(Quaternion* a, Quaternion* b, Quaternion* Dest);
 
 /**
  * Applies quaternion rotation to a given vector.

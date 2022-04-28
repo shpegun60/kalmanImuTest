@@ -28,6 +28,12 @@ typedef struct
     float halfT;
     float quadHalfT;
     float recipNorm;
+
+
+
+    // only debug values
+    Quaternion RES;
+    float quat[4];
 } IMU10Dof;
 
 typedef struct

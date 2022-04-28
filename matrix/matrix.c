@@ -21,7 +21,7 @@ int showmat(Mat* A, char * name)
     printf("[");
     for(unsigned int i = 0; i < A->row; i++){
         for (unsigned int j = 0; j < A->col; j++) {
-            sprintf(txt, "\t%.10f", (float)A->data[i][j]);
+            sprintf(txt, "\t%.5f", (float)A->data[i][j]);
             printf("%s", txt);
         }
         if(i == (A->row - 1)) {
@@ -192,6 +192,7 @@ int sub(Mat* A, Mat* B, Mat* Dest) // hardness function: r1 * c1
     return MAT_SUCC;
 }
 
+
 int scalarmultiply(Mat* A, Mat* Dest, MAT_TYPE scalar)
 {
     M_Assert_Break((!A || !Dest), "scalarmultiply: incorrect input values", return MAT_FAIL);
@@ -214,25 +215,25 @@ int multiply(Mat* A, Mat* B, Mat* Dest) // hardness function: 2 * r1 * c2 * r2
 
     unsigned int r1 = A->row;
     unsigned int r2 = B->row;
-    unsigned int c1 = A->col;
+    //unsigned int c1 = A->col;
     unsigned int c2 = B->col;
 
-    if ((r1 == 1) && (c1 == 1)) {
-        scalarmultiply(B, Dest, A->data[0][0]);
-        return MAT_SUCC;
-    } else if ((r2 == 1) && (c2 == 1)) {
-        scalarmultiply(A, Dest, B->data[0][0]);
-        return MAT_SUCC;
-    }
+//    if ((r1 == 1) && (c1 == 1)) {
+//        scalarmultiply(B, Dest, A->data[0][0]);
+//        return MAT_SUCC;
+//    } else if ((r2 == 1) && (c2 == 1)) {
+//        scalarmultiply(A, Dest, B->data[0][0]);
+//        return MAT_SUCC;
+//    }
 
-    register MAT_TYPE sum = (MAT_TYPE)0;
+    register MAT_TYPE sum = (MAT_TYPE)0.0f;
     for (unsigned int i = 0; i < r1; ++i) {
         for (unsigned int j = 0; j < c2; ++j) {
             for (unsigned int k = 0; k < r2; ++k) {
                 sum += A->data[i][k] * B->data[k][j];
             }
             Dest->data[i][j] = sum;
-            sum = 0;
+            sum = (MAT_TYPE)0.0f;
         }
     }
     return MAT_SUCC;
@@ -260,6 +261,21 @@ Mat* copyValue(Mat* A)
         }
     }
     return B;
+}
+
+int matrixCopy(Mat* A, Mat* Dest)
+{
+    M_Assert_Break((!A || !Dest), "matrixCopy: incorrect input values", return MAT_FAIL);
+    M_Assert_Break(( (Dest->row < A->row) || (Dest->col < A->col) ), "matrixCopy: incorrect length", return MAT_FAIL);
+    unsigned int r = A->row;
+    unsigned int c = A->col;
+
+    for(unsigned int i = 0; i < r; ++i) {
+        for(unsigned int j = 0; j < c; ++j){
+            Dest->data[i][j] = A->data[i][j];
+        }
+    }
+    return MAT_SUCC;
 }
 
 

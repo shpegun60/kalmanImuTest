@@ -45,6 +45,7 @@ int multiply(Mat* A, Mat* B, Mat* Dest);
 
 int transpose(Mat* A, Mat* Dest);
 Mat* copyValue(Mat* A);
+int matrixCopy(Mat* A, Mat* Dest);
 
 int gluInvertMatrix4x4(Mat* A, Mat* Dest);
 int gluInvertMatrix4x4_fastest(Mat* A, Mat* Dest); // destination must not equal to A

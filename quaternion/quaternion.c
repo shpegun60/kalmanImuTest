@@ -11,11 +11,14 @@
 //-------------------------------------------------------------------------------------------
 // Fast inverse square-root
 // See: http://en.wikipedia.org/wiki/Fast_inverse_square_root
+// Source code of Quake III Arena
 
 #ifdef FAST_CALCULATE_INV_SQRT
-static_assert (sizeof(long) == 4, "need rewrite platform depend invSqrt function or commit FAST_CALCULATE_INV_SQRT because type long != 4");
+static_assert (sizeof(long) == 4, "need rewrite platform depend invSqrt and fastSqrt function or commit FAST_CALCULATE_INV_SQRT because type long != 4");
 #endif
 
+
+// fast find 1 / sqrt(x)
 float invSqrt(const float x) {
     float halfx = 0.5f * x;
     float y = x;
@@ -27,6 +30,7 @@ float invSqrt(const float x) {
     return y;
 }
 
+// fast find sqrt(x) (remove comments on once value)
 float fastSqrt(const float n)
 {
     /*
@@ -48,7 +52,7 @@ float fastSqrt(const float n)
 
     /*
      ********************************************************************************************
-     * 2) LOW precision for games. (less then origin square)
+     * 2) The fastest algorithm but not accurate. (less then origin square)
      * -Advantages:
      *      * The convergence of the function is greater than that of the first method.
      *      * Generates times equal to or greater than the first method.
@@ -272,7 +276,7 @@ void Quaternion_multiply(Quaternion* q1, Quaternion* q2, Quaternion* output)
     *output = result;
 }
 
-void Quaternion_multiply_to_array(Quaternion* q1, Quaternion* q2, float* output)
+void Quaternion_multiply_to_arrayLN(Quaternion* q1, Quaternion* q2, float** output)
 {
     assert(output != NULL);
 
@@ -283,10 +287,26 @@ void Quaternion_multiply_to_array(Quaternion* q1, Quaternion* q2, float* output)
         + j (a*g - b*h + c*e + d*f)
         + k (a*h + b*g - c*f + d*e)
     */
-    output[0] =    q1->w   *q2->w    - q1->v[0]*q2->v[0] - q1->v[1]*q2->v[1] - q1->v[2]*q2->v[2];
-    output[1] = q1->v[0]*q2->w    + q1->w   *q2->v[0] + q1->v[1]*q2->v[2] - q1->v[2]*q2->v[1];
-    output[2] = q1->w   *q2->v[1] - q1->v[0]*q2->v[2] + q1->v[1]*q2->w    + q1->v[2]*q2->v[0];
-    output[3] = q1->w   *q2->v[2] + q1->v[0]*q2->v[1] - q1->v[1]*q2->v[0] + q1->v[2]*q2->w   ;
+    output[0][0] = q1->w   *q2->w    - q1->v[0]*q2->v[0] - q1->v[1]*q2->v[1] - q1->v[2]*q2->v[2];
+    output[1][0] = q1->v[0]*q2->w    + q1->w   *q2->v[0] + q1->v[1]*q2->v[2] - q1->v[2]*q2->v[1];
+    output[2][0] = q1->w   *q2->v[1] - q1->v[0]*q2->v[2] + q1->v[1]*q2->w    + q1->v[2]*q2->v[0];
+    output[3][0] = q1->w   *q2->v[2] + q1->v[0]*q2->v[1] - q1->v[1]*q2->v[0] + q1->v[2]*q2->w   ;
+}
+
+void Quaternion_scalar_multiplication(Quaternion* q, float s, Quaternion* Dest)
+{
+    Dest->w     = q->w    * s;
+    Dest->v[0]  = q->v[0] * s;
+    Dest->v[1]  = q->v[1] * s;
+    Dest->v[2]  = q->v[2] * s;
+}
+
+void Quaternion_add(Quaternion *a, Quaternion *b, Quaternion *Dest)
+{
+    Dest->w     = a->w    + b->w   ;
+    Dest->v[0]  = a->v[0] + b->v[0];
+    Dest->v[1]  = a->v[1] + b->v[1];
+    Dest->v[2]  = a->v[2] + b->v[2];
 }
 
 void Quaternion_rotate(Quaternion* q, float v[3], float output[3])
