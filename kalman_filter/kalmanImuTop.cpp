@@ -1,9 +1,9 @@
 #include "kalmanImuTop.h"
 #include <qdebug.h>
 
-KalmanIMU::KalmanIMU(float const_u, float dt, float *Q10x10, float *R4x4)
+KalmanIMU::KalmanIMU(float const_u, float* gravityConst, float dt, float *Q10x10, float *R4x4)
 {
-    imu = imuCreate(const_u, dt, Q10x10, R4x4);
+    imu = imuCreate(const_u, gravityConst, dt, Q10x10, R4x4);
     //    /printkalman(imu->kalman);
 }
 
@@ -53,10 +53,15 @@ Quaternion *KalmanIMU::getQuaternion()
     return &imu->q_a;
 }
 
+float *KalmanIMU::getGravity()
+{
+    return imu->grav;
+}
+
+
 void KalmanIMU::printKalmanTop()
 {
     printkalman(imu->kalman);
 }
-
 
 

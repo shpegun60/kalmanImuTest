@@ -14,7 +14,7 @@
 // Source code of Quake III Arena
 
 #ifdef FAST_CALCULATE_INV_SQRT
-static_assert (sizeof(long) == 4, "need rewrite platform depend invSqrt and fastSqrt function or commit FAST_CALCULATE_INV_SQRT because type long != 4");
+static_assert (sizeof(long) == 4, "Quaternion: need rewrite platform depend invSqrt and fastSqrt function or commit FAST_CALCULATE_INV_SQRT because type long != 4");
 #endif
 
 

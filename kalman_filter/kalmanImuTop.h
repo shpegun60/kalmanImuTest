@@ -12,7 +12,7 @@ extern "C" {
 class KalmanIMU
 {
 public:
-    KalmanIMU(float const_u, float dt, float* Q10x10, float* R4x4);
+    KalmanIMU(float const_u, float* gravityConst, float dt, float *Q10x10, float *R4x4);
     int KalmanIMUProceed(IMUinput * data);
     int KalmanIMUProceed(double dt, double ax, double ay, double az, double gx, double gy, double gz, double mx, double my, double mz);
 
@@ -24,6 +24,7 @@ public:
     void showMatrixTop(Mat *, QString name);
     void printKalmanTop();
 
+    float *getGravity();
 private:
     IMU10Dof* imu;
 };

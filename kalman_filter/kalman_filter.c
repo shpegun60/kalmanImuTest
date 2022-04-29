@@ -5,6 +5,8 @@
 
 KalmanFilter* kalmanCreate(initKalmanFunction userInit, unsigned int x, unsigned int z, unsigned int u)
 {
+#warning bug KalmanFilter: if u == 0 not allocation matrix "DriveMult" although used in Predict step as a buffer
+
     M_Assert_BreakSaveCheck((x == 0 || z == 0), "kalmanCreate: Give me positive values for dimensions genius", return NULL);
 
     KalmanFilter* m = (KalmanFilter*)malloc(sizeof(KalmanFilter));

@@ -13,41 +13,37 @@
 typedef struct
 {
     KalmanFilter* kalman;
-    float grav[3];
-    float const_u;
+    float grav[3];              // result calculated gravity vector
+    float const_u;              // angle error filtration constant coefficient u (set once at the beginning) Must be: in conditions of static motion >= 0.9, in conditions of dynamic motion <= 0.001
+    float calibrationGrav[3];   // calibration gravity constant on all axes (set once at the beginning)
 
-    float angleErr;
-    float rotateAxisErr[3];
-    float grav_norm[3];
-    Quaternion q_ae;
-    Quaternion q_a;
+    // temp data
+    float angleErr;             // error angle between calculated accelerometer data and measured accelerometer
+    float rotateAxisErr[3];     // error axis between calculated accelerometer data and measured accelerometer
+    float grav_norm[3];         // normalized gravity vector
+    Quaternion q_ae;            // error rotation quaternion
+    Quaternion q_a;             // result estimated quaternion from kalman
 
+    // other temp data for help`s calculation
     float Tx;
     float Ty;
     float Tz;
     float halfT;
-    float quadHalfT;
     float recipNorm;
-
-
-
-    // only debug values
-    Quaternion RES;
-    float quat[4];
 } IMU10Dof;
 
 typedef struct
 {
     float dt;
 
-    float g[3]; // [radians/sec]   g[0] ==> x; g[1] ==> y; g[2] ==> z;
-    float a[3]; // [ones Gravity]  a[0] -> x; a[1] -> y; a[2] -> z; earth gravity ==> z
-    float m[3]; // [ones Gauss]    m[0] -> x; m[1] -> y; m[2] -> z;
+    float g[3]; // [ radians/sec ]   g[0] ==> x; g[1] ==> y; g[2] ==> z;
+    float a[3]; // [ m / sec^2 ]  a[0] -> x; a[1] -> y; a[2] -> z; earth gravity ==> z
+    float m[3]; // [ones Gauss]    m[0] -> x; m[1] -> y; m[2] -> z; (on this time not used)
 
 } IMUinput;
 
 
-IMU10Dof* imuCreate(float const_u, MAT_TYPE dt, MAT_TYPE* Q10x10, MAT_TYPE* R4x4);
+IMU10Dof* imuCreate(float const_u, float* gravityConst, MAT_TYPE dt, MAT_TYPE* Q10x10, MAT_TYPE* R4x4);
 int imuProceed(IMU10Dof* imu, IMUinput * data);
 
 

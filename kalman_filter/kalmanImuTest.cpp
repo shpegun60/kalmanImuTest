@@ -19,7 +19,7 @@ KalmanIMUTest::KalmanIMUTest()
     float T21 = (dt * dt * dt) / 2.0;
     float T22 = (dt * dt);
 
-    MAT_TYPE Q_init[10][10] =
+    float Q_init[10][10] =
     {
         {T11 * sQx,     T12 * sQx,              0,                      0,                              0,                          0,                  0,  0,  0,  0},
         {T21 * sQx,     T22 * sQx,              0,                      0,                              0,                          0,                  0,  0,  0,  0},
@@ -33,7 +33,7 @@ KalmanIMUTest::KalmanIMUTest()
         {0,             0,                      0,                      0,                              0,                          0,                  0,  0,  0,  sQR}
     };
 
-    MAT_TYPE R_init[4][4] =
+    float R_init[4][4] =
     {
         {sR, 0,  0,  0},
         {0, sR,  0,  0},
@@ -41,12 +41,14 @@ KalmanIMUTest::KalmanIMUTest()
         {0, 0,  0,  sR}
     };
 
-    kalman = new KalmanIMU(0.9, 0, Q_init[0], R_init[0]);
+    float gravityConstant[4] = {9.8f, 9.8f, 9.8f};
+
+    kalman = new KalmanIMU(0.001, gravityConstant, 0, Q_init[0], R_init[0]);
 }
 
 
 
-void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCPGraph* graphZ, QString gyroFileName, QString accFileName)
+void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCPGraph* graphZ, QString gyroFileName, QString accFileName, RequestTests testType)
 {
 
     graphX->setName("alpha");
@@ -109,21 +111,42 @@ void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCP
         auto gz = gyroList[3].toDouble(&ok);
 
         kalman->KalmanIMUProceed(dt / 1000.0, ax, ay, az, gx, gy, gz, 0, 0, 0);
-        Quaternion_toEulerZYX(kalman->getQuaternion(), euler);
-        //ui->qplot1->graph(0)->addData(i, y0[i]);
 
-        //kalman->printKalmanTop();
-        graphX->addData(t, euler[0] * (180.0f / M_PI));
-        graphY->addData(t, euler[1] * (180.0f / M_PI));
-        graphZ->addData(t, euler[2] * (180.0f / M_PI));
+
+        switch (testType) {
+
+        case(ANGLE_DATA):
+            Quaternion_toEulerZYX(kalman->getQuaternion(), euler);
+            //ui->qplot1->graph(0)->addData(i, y0[i]);
+
+            //kalman->printKalmanTop();
+            graphX->addData(t, euler[0] * (180.0f / M_PI));
+            graphY->addData(t, euler[1] * (180.0f / M_PI));
+            graphZ->addData(t, euler[2] * (180.0f / M_PI));
+            break;
+
+        case(GRAVITY_DATA): {
+            float * gravity = kalman->getGravity();
+
+            graphX->addData(t, gravity[0]);
+            graphY->addData(t, gravity[1]);
+            graphZ->addData(t, gravity[2]);
+            break;
+        }
+
+        default:
+            break;
+        }
     }
 
     graphX->parentPlot()->replot();
     graphY->parentPlot()->replot();
     graphZ->parentPlot()->replot();
 
-}
+    gyroFile.close();
+    accFile.close();
 
+}
 
 
 void KalmanIMUTest::csvXYZToGraph(QString fileName, QCPGraph* graphX, QCPGraph* graphY, QCPGraph* graphZ, quint32 counterStart, double multiplicationConst)
@@ -204,4 +227,197 @@ void KalmanIMUTest::csvXYZToGraph(QString fileName, QCPGraph* graphX, QCPGraph* 
     graphX ->parentPlot()->replot();
     graphY ->parentPlot()->replot();
     graphZ ->parentPlot()->replot();
+
+    file.close();
+}
+
+
+
+void KalmanIMUTest::calibrateAccelGyroFromFile(QCPGraph *accX, QCPGraph *accY, QCPGraph *accZ, QCPGraph *gyroX, QCPGraph *gyroY, QCPGraph *gyroZ, QString gyroFileName, QString accFileName, double gravityConstant, int meanIterations, double acel_deadzone, double gyro_deadzone)
+{
+    accX->setName("accX");
+    accY->setName("accY");
+    accZ->setName("accZ");
+
+    gyroX->setName("gyroX");
+    gyroY->setName("gyroY");
+    gyroZ->setName("gyroZ");
+
+
+    QFile gyroFile(gyroFileName);
+    QFile accFile(accFileName);
+
+    if (!gyroFile.open(QIODevice::ReadOnly)) {
+        qDebug() <<"gyro file not open: "<< gyroFile.errorString();
+        return;
+    }
+
+    if (!accFile.open(QIODevice::ReadOnly)) {
+        qDebug() <<endl<<"acc file not open: "<< accFile.errorString();
+        return;
+    }
+
+    bool ok;
+    bool headPass = false;
+    bool timefixed = false;
+    quint64 start_time = 0;
+    quint64 last_time = 0;
+
+
+
+    while (!gyroFile.atEnd() && !accFile.atEnd()) {
+        QByteArray accLine = accFile.readLine();
+        QByteArray gyroLine = gyroFile.readLine();
+
+        if(!headPass) {
+            headPass = true;
+            continue;
+        }
+
+        auto &&accList = accLine.split(',');
+        auto &&gyroList = gyroLine.split(',');
+
+        if(!timefixed) {
+            start_time = gyroList[0].toULongLong(&ok);
+            timefixed = true;
+            continue;
+        }
+
+        auto t = gyroList[0].toULongLong(&ok) - start_time;
+        auto dt = t - last_time;
+        last_time = t;
+
+        if(dt == 0) {
+            continue;
+        }
+
+        auto ax = accList[1].toDouble(&ok) + ax_offset;
+        auto ay = accList[2].toDouble(&ok) + ay_offset;
+        auto az = accList[3].toDouble(&ok) + az_offset;
+
+        auto gx = gyroList[1].toDouble(&ok) + gx_offset;
+        auto gy = gyroList[2].toDouble(&ok) + gy_offset;
+        auto gz = gyroList[3].toDouble(&ok) + gz_offset;
+
+        switch (state) {
+
+        case(0):
+            buff_ax = 0.0f; buff_ay = 0.0f; buff_az = 0.0f; buff_gx = 0.0f; buff_gy = 0.0f; buff_gz = 0.0f;
+            mean_ax = 0.0f; mean_ay = 0.0f; mean_az = 0.0f; mean_gx = 0.0f; mean_gy = 0.0f; mean_gz = 0.0f;
+            ax_offset = 0.0f;  ay_offset = 0.0f; az_offset = 0.0f; gx_offset = 0.0f; gy_offset = 0.0f; gz_offset = 0.0f;
+            iterator = 0;
+            ++state;
+            break;
+
+        case(1):
+            calculateMeans(ax, ay, az, gx, gy, gz, meanIterations);
+            break;
+
+        case(2):
+            ax_offset = -mean_ax / 8.0f;
+            ay_offset = -mean_ay / 8.0f;
+            az_offset = (gravityConstant - mean_az) / 8.0f;
+            gx_offset = -mean_gx / 4.0f;
+            gy_offset = -mean_gy / 4.0f;
+            gz_offset = -mean_gz / 4.0f;
+
+            buff_ax = 0.0f; buff_ay = 0.0f; buff_az = 0.0f; buff_gx = 0.0f; buff_gy = 0.0f; buff_gz = 0.0f;
+            iterator = 0;
+            ++state;
+            break;
+
+        case(3):
+            calculateMeans(ax, ay, az, gx, gy, gz, meanIterations);
+            break;
+
+        case(4): {
+            gyroX->addData(t, gx_offset);
+            gyroY->addData(t, gy_offset);
+            gyroZ->addData(t, gz_offset);
+
+            accX->addData(t, ax_offset);
+            accY->addData(t, ay_offset);
+            accZ->addData(t, az_offset);
+
+            auto abs_ax = abs(mean_ax);
+            auto abs_ay = abs(mean_ay);
+            auto abs_az = abs(gravityConstant - mean_az);
+
+            auto abs_gx = abs(mean_gx);
+            auto abs_gy = abs(mean_gy);
+            auto abs_gz = abs(mean_gz);
+
+            qDebug() <<endl<<" gx_offset: "<< gx_offset <<" gy_offset: "<< gy_offset <<" gz_offset: "<< gz_offset <<" ax_offset: "<< ax_offset <<" ay_offset: "<< ay_offset <<" az_offset: "<< az_offset;
+            qDebug() <<" gx_mean: "<< abs_gx <<" gy_mean: "<< abs_gy <<" gz_mean: "<< abs_gz <<" ax_mean: "<< abs_ax <<" ay_mean: "<< abs_ay <<" az_mean: "<< abs_az;
+
+
+            int ready = 0;
+            if (abs_ax <= acel_deadzone) ready++;
+            else ax_offset = ax_offset - (mean_ax  * 0.5);
+            if (abs_ay <= acel_deadzone) ready++;
+            else ay_offset = ay_offset - (mean_ay  * 0.5);
+            if (abs_az <= acel_deadzone) ready++;
+            else az_offset = az_offset + ((gravityConstant - mean_az)  * 0.5);
+            if (abs_gx <= gyro_deadzone) ready++;
+            else gx_offset = gx_offset - (mean_gx  * 0.5);
+            if (abs_gy <= gyro_deadzone) ready++;
+            else gy_offset = gy_offset - (mean_gy  * 0.5);
+            if (abs_gz <= gyro_deadzone) ready++;
+            else gz_offset = gz_offset - (mean_gz  * 0.5);
+
+            ++NOC;
+
+            if (ready == 6 || NOC > 5000000)  {
+                qDebug() <<endl<<" -------------------END ALGO---------------------";
+                return;
+            } else {
+                buff_ax = 0.0f; buff_ay = 0.0f; buff_az = 0.0f; buff_gx = 0.0f; buff_gy = 0.0f; buff_gz = 0.0f;
+                iterator = 0;
+                state = 3;
+            }
+            break;
+        }
+
+        default:
+            state = 0;
+            break;
+        }
+    }
+    qDebug() <<endl<<" -------------------END FILE---------------------";
+    accX ->parentPlot()->replot();
+    accY ->parentPlot()->replot();
+    accZ ->parentPlot()->replot();
+
+    gyroX ->parentPlot()->replot();
+    gyroY ->parentPlot()->replot();
+    gyroZ ->parentPlot()->replot();
+
+
+    gyroFile.close();
+    accFile.close();
+}
+
+void KalmanIMUTest::calculateMeans(double ax, double ay, double az, double gx, double gy, double gz, int meanIterations)
+{
+    if(iterator < (meanIterations + 101)) {
+        if (iterator > 100 && iterator <= (meanIterations + 100)) { //First 100 measures are discarded
+            buff_ax += ax;
+            buff_ay += ay;
+            buff_az += az;
+            buff_gx += gx;
+            buff_gy += gy;
+            buff_gz += gz;
+        }
+        if (iterator == (meanIterations + 100)) {
+            mean_ax = buff_ax / meanIterations;
+            mean_ay = buff_ay / meanIterations;
+            mean_az = buff_az / meanIterations;
+            mean_gx = buff_gx / meanIterations;
+            mean_gy = buff_gy / meanIterations;
+            mean_gz = buff_gz / meanIterations;
+        }
+        ++iterator;
+    } else {
+        ++state;
+    }
 }
