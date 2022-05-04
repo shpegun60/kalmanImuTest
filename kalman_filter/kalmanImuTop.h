@@ -12,7 +12,7 @@ extern "C" {
 class KalmanIMU
 {
 public:
-    KalmanIMU(float const_u, float* gravityConst, float dt, float *Q10x10, float *R4x4);
+    KalmanIMU(float const_u, float* gravityConstVect, float* accelBiasVect, float* gyroBiasVect, float dt, float *Q10x10, float *R4x4);
     int KalmanIMUProceed(IMUinput * data);
     int KalmanIMUProceed(double dt, double ax, double ay, double az, double gx, double gy, double gz, double mx, double my, double mz);
 
@@ -25,6 +25,7 @@ public:
     void printKalmanTop();
 
     float *getGravity();
+    Mat *getLinearAcceleration();
 private:
     IMU10Dof* imu;
 };

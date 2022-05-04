@@ -16,6 +16,8 @@ typedef struct
     float grav[3];              // result calculated gravity vector
     float const_u;              // angle error filtration constant coefficient u (set once at the beginning) Must be: in conditions of static motion >= 0.9, in conditions of dynamic motion <= 0.001
     float calibrationGrav[3];   // calibration gravity constant on all axes (set once at the beginning)
+    float accelBiasVect[3];   // acceleration bias vector
+    float gyroBiasVect[3];   // gyroscope bias vector
 
     // temp data
     float angleErr;             // error angle between calculated accelerometer data and measured accelerometer
@@ -30,6 +32,25 @@ typedef struct
     float Tz;
     float halfT;
     float recipNorm;
+
+
+
+    Quaternion RES;
+
+    // to update Q_k------------------------------------------------------
+    Mat* Q_quat;
+    Mat* G;
+    Mat* G_t;
+    Mat* Noise;
+    Mat* NOISE_RES;
+    float constT_4;
+
+    // R
+    Mat* J;
+    Mat* J_t;
+    Mat* Noise_acc;
+    Mat* NOISE_R_RES;
+
 } IMU10Dof;
 
 typedef struct
@@ -43,7 +64,7 @@ typedef struct
 } IMUinput;
 
 
-IMU10Dof* imuCreate(float const_u, float* gravityConst, MAT_TYPE dt, MAT_TYPE* Q10x10, MAT_TYPE* R4x4);
+IMU10Dof* imuCreate(float const_u, float* gravityConstVect, float* accelBiasVect, float* gyroBiasVect, MAT_TYPE dt, MAT_TYPE* Q10x10, MAT_TYPE* R4x4);
 int imuProceed(IMU10Dof* imu, IMUinput * data);
 
 

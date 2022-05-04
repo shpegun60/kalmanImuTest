@@ -8,7 +8,8 @@
 
 typedef enum {
     ANGLE_DATA,
-    GRAVITY_DATA
+    GRAVITY_DATA,
+    LINEAR_ACCERARATION_DATA
 } RequestTests;
 
 
@@ -37,6 +38,10 @@ private:
     int iterator = 0;
     int state = 0;
     int NOC = 0;
+
+    double mean_ax_best = 0, mean_ay_best = 0, mean_az_best = 0, mean_gx_best = 0, mean_gy_best = 0, mean_gz_best = 0;
+    double ax_offset_best = 0, ay_offset_best = 0, az_offset_best = 0, gx_offset_best = 0, gy_offset_best = 0, gz_offset_best = 0;
+    double bestSum = 0.0;
 
 };
 

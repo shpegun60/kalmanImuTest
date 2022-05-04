@@ -41,9 +41,15 @@ KalmanIMUTest::KalmanIMUTest()
         {0, 0,  0,  sR}
     };
 
-    float gravityConstant[4] = {9.8f, 9.8f, 9.8f};
+    float gravityConstant[3] = {9.8f, 9.8f, 9.8f};
+    float accelBiasVect[3] = {2.63679, -0.064461,  -0.330342};
+    float gyroBiasVect[3] = {-0.000133188, 2.54972e-05, -9.72103e-06};
 
-    kalman = new KalmanIMU(0.001, gravityConstant, 0, Q_init[0], R_init[0]);
+
+//            float accelBiasVect[3] = {0.0, };
+//            float gyroBiasVect[3] = {0.0, };
+
+    kalman = new KalmanIMU(0.001, gravityConstant, accelBiasVect, gyroBiasVect, 0, Q_init[0], R_init[0]);
 }
 
 
@@ -75,6 +81,7 @@ void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCP
     bool timefixed = false;
     bool headPass = false;
 
+    int b = 0;
 
     while (!gyroFile.atEnd() && !accFile.atEnd()) {
         QByteArray accLine = accFile.readLine();
@@ -134,10 +141,27 @@ void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCP
             break;
         }
 
+        case(LINEAR_ACCERARATION_DATA): {
+            Mat * linearAcceleration = kalman->getLinearAcceleration();
+
+            graphX->addData(t, linearAcceleration->data[0][0]);
+            graphY->addData(t, linearAcceleration->data[1][0]);
+            graphZ->addData(t, linearAcceleration->data[2][0]);
+            break;
+        }
+
         default:
             break;
         }
+
+//        b++;
+//        if(b > 1000 ) {
+//            return;
+//        }
     }
+
+
+
 
     graphX->parentPlot()->replot();
     graphY->parentPlot()->replot();
@@ -321,6 +345,10 @@ void KalmanIMUTest::calibrateAccelGyroFromFile(QCPGraph *accX, QCPGraph *accY, Q
             gy_offset = -mean_gy / 4.0f;
             gz_offset = -mean_gz / 4.0f;
 
+            mean_ax_best = 0.0; mean_ay_best = 0.0; mean_az_best = 0.0; mean_gx_best = 0.0; mean_gy_best = 0.0; mean_gz_best = 0.0;
+            ax_offset_best = 0.0; ay_offset_best = 0.0; az_offset_best = 0.0; gx_offset_best = 0.0; gy_offset_best = 0.0; gz_offset_best = 0.0;
+            bestSum = abs(mean_ax) + abs(mean_ay) + abs(gravityConstant - mean_az) + abs(mean_gx) + abs(mean_gy) + abs(mean_gz);
+
             buff_ax = 0.0f; buff_ay = 0.0f; buff_az = 0.0f; buff_gx = 0.0f; buff_gy = 0.0f; buff_gz = 0.0f;
             iterator = 0;
             ++state;
@@ -349,6 +377,13 @@ void KalmanIMUTest::calibrateAccelGyroFromFile(QCPGraph *accX, QCPGraph *accY, Q
 
             qDebug() <<endl<<" gx_offset: "<< gx_offset <<" gy_offset: "<< gy_offset <<" gz_offset: "<< gz_offset <<" ax_offset: "<< ax_offset <<" ay_offset: "<< ay_offset <<" az_offset: "<< az_offset;
             qDebug() <<" gx_mean: "<< abs_gx <<" gy_mean: "<< abs_gy <<" gz_mean: "<< abs_gz <<" ax_mean: "<< abs_ax <<" ay_mean: "<< abs_ay <<" az_mean: "<< abs_az;
+
+            auto sum = abs_ax + abs_ay + abs_az + abs_gx + abs_gy + abs_gz;
+            if(sum < bestSum) {
+                bestSum = sum;
+                mean_ax_best = abs_ax; mean_ay_best = abs_ay; mean_az_best = abs_az; mean_gx_best = abs_gx; mean_gy_best = abs_gy; mean_gz_best = abs_gz;
+                ax_offset_best = ax_offset; ay_offset_best = ay_offset; az_offset_best = az_offset; gx_offset_best = gx_offset; gy_offset_best = gy_offset; gz_offset_best = gz_offset;
+            }
 
 
             int ready = 0;
@@ -384,6 +419,11 @@ void KalmanIMUTest::calibrateAccelGyroFromFile(QCPGraph *accX, QCPGraph *accY, Q
         }
     }
     qDebug() <<endl<<" -------------------END FILE---------------------";
+    qDebug() <<"BEST PARAMETERS:";
+    qDebug() <<endl<<" gx_offset: "<< gx_offset_best <<" gy_offset: "<< gy_offset_best <<" gz_offset: "<< gz_offset_best <<" ax_offset: "<< ax_offset_best <<" ay_offset: "<< ay_offset_best <<" az_offset: "<< az_offset_best;
+    qDebug() <<" gx_mean: "<< mean_gx_best <<" gy_mean: "<< mean_gy_best <<" gz_mean: "<< mean_gz_best <<" ax_mean: "<< mean_ax_best <<" ay_mean: "<< mean_ay_best <<" az_mean: "<< mean_az_best;
+
+
     accX ->parentPlot()->replot();
     accY ->parentPlot()->replot();
     accZ ->parentPlot()->replot();

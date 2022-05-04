@@ -130,11 +130,13 @@ int kalmanUpdate(KalmanFilter* m)
     multiply(m->P_pred, m->H_t, m->K_tmp);          // (P[n,n-1] * H^T) = K_tmp                                     //800
     multiply(m->H, m->K_tmp, m->S);                 // H * K_tmp = S_n                                              // 320
     add(m->S, m->R, m->S);                          // S_n = S_n + R_n                                              // 16
+    //showmat(m->S, "matrix S:");
 
     // 4)
     gluInvertMatrix4x4_fastest(m->S, m->S_inv);     // S_n ==> S_n^-1                                               // 200
+    //showmat(m->S_inv, "matrix S_inv:");
     multiply(m->K_tmp, m->S_inv, m->K);             // K_tmp * S_n^-1 = K_n                                         // 320
-
+    //showmat(m->K, "matrix K:");
     // 5)
     multiply(m->H, m->X_pred, m->Update_derivative);            // H * X[n,n−1] = Update_derivative                 // 80
     sub(m->Z, m->Update_derivative, m->Update_derivative);      // Z_n − Update_derivative = Update_derivative      // 4

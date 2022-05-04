@@ -9,21 +9,25 @@ MainWindow::MainWindow(QWidget *parent)
     initPlot();
     kalmanTest = new KalmanIMUTest();
 
-    //        // quaternion test kalman ---------------------------------------------------------------------------------------
-//            kalmanTest->testQuaternionKalman(alpha, beta, gamma, "Gyroscope.csv", "Accelerometer.csv", ANGLE_DATA);         // test kalman from files and plot to graph
-//            kalmanTest->csvXYZToGraph("Rotation.csv", alpha_real, beta_real, gamma_real, 10, (180.0f / M_PI));  // plot real angle data from dataset
+//    //        // quaternion test kalman ---------------------------------------------------------------------------------------
+            kalmanTest->testQuaternionKalman(alpha, beta, gamma, "Gyroscope.csv", "Accelerometer.csv", ANGLE_DATA);         // test kalman from files and plot to graph
+            kalmanTest->csvXYZToGraph("Rotation.csv", alpha_real, beta_real, gamma_real, 10, (180.0f / M_PI));  // plot real angle data from dataset
     //        //---------------------------------------------------------------------------------------------------------------
 
 
-    //    // linear acceleration test ---------------------------------------------------------------------------------------
-//    kalmanTest->testQuaternionKalman(alpha, beta, gamma, "Gyroscope.csv", "Accelerometer.csv", GRAVITY_DATA);         // test kalman from files and plot to graph
+//    //    // gravity test ---------------------------------------------------------------------------------------
+//    kalmanTest->testQuaternionKalman(alpha, beta, gamma, "Gyroscope.csv", "Accelerometer.csv", GRAVITY_DATA);
 //    kalmanTest->csvXYZToGraph("Accelerometer.csv", alpha_real, beta_real, gamma_real, 1, 1.0f);
     //    //---------------------------------------------------------------------------------------------------------------
 
 
+//    //    // linear acceleration test ---------------------------------------------------------------------------------------
+//    kalmanTest->testQuaternionKalman(alpha, beta, gamma, "Gyroscope.csv", "Accelerometer.csv", LINEAR_ACCERARATION_DATA);
+//    kalmanTest->csvXYZToGraph("LinearAcceleration.csv", alpha_real, beta_real, gamma_real, 1, 1.0f);
+    //    //---------------------------------------------------------------------------------------------------------------
 
     /// calibration accel & gyro from file
-    kalmanTest->calibrateAccelGyroFromFile(alpha, beta, gamma, alpha_real, beta_real, gamma_real, "Gyroscope.csv", "Accelerometer.csv", 9.8f, 200, 0.00001, 0.00001);
+    //kalmanTest->calibrateAccelGyroFromFile(alpha, beta, gamma, alpha_real, beta_real, gamma_real, "Gyroscope.csv", "Accelerometer.csv", 9.8f, 200, 0.00001, 0.00001);
 }
 
 MainWindow::~MainWindow()

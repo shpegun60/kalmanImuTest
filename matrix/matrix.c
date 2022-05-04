@@ -232,6 +232,11 @@ int multiply(Mat* A, Mat* B, Mat* Dest) // hardness function: 2 * r1 * c2 * r2
             for (unsigned int k = 0; k < r2; ++k) {
                 sum += A->data[i][k] * B->data[k][j];
             }
+//            if(isnan(sum)) {
+//                showmat(A, "MAT A:");
+//                showmat(B, "MAT B:");
+//                 showmat(Dest, "MAT Dest:");
+//            }
             Dest->data[i][j] = sum;
             sum = (MAT_TYPE)0.0f;
         }
@@ -323,8 +328,8 @@ int gluInvertMatrix4x4_fastest(Mat* restrict A, Mat* restrict Dest) // destinati
     M_Assert_Break((A->row != 4 || A->col != 4 || Dest->col < 4 || Dest->row < 4), "gluInvertMatrix4x4_fastest: incorrect length", return MAT_FAIL);
     M_Assert_Break((A == Dest), "gluInvertMatrix4x4_fastest: input matrix have equals adresses - undefined behavior", return MAT_FAIL);
 
-    float s[6];
-    float c[6];
+    double s[6];
+    double c[6];
 
     s[0] = A->data[0][0]*A->data[1][1] - A->data[1][0]*A->data[0][1];
     s[1] = A->data[0][0]*A->data[1][2] - A->data[1][0]*A->data[0][2];
@@ -341,10 +346,31 @@ int gluInvertMatrix4x4_fastest(Mat* restrict A, Mat* restrict Dest) // destinati
     c[5] = A->data[2][2]*A->data[3][3] - A->data[3][2]*A->data[2][3];
 
     /* Assumes it is invertible */
-    float idet = 1.0f/( s[0]*c[5]-s[1]*c[4]+s[2]*c[3]+s[3]*c[2]-s[4]*c[1]+s[5]*c[0] );
-    if(idet == 0) {
+    double idet = ( s[0]*c[5]-s[1]*c[4]+s[2]*c[3]+s[3]*c[2]-s[4]*c[1]+s[5]*c[0] );
+    if(idet == 0.0f) {
+        Dest->data[0][0] = 0.0;
+        Dest->data[0][1] = 0.0;
+        Dest->data[0][2] = 0.0;
+        Dest->data[0][3] = 0.0;
+
+        Dest->data[1][0] = 0.0;
+        Dest->data[1][1] = 0.0;
+        Dest->data[1][2] = 0.0;
+        Dest->data[1][3] = 0.0;
+
+        Dest->data[2][0] = 0.0;
+        Dest->data[2][1] = 0.0;
+        Dest->data[2][2] = 0.0;
+        Dest->data[2][3] = 0.0;
+
+        Dest->data[3][0] = 0.0;
+        Dest->data[3][1] = 0.0;
+        Dest->data[3][2] = 0.0;
+        Dest->data[3][3] = 0.0;
         return MAT_FAIL;
     }
+
+    idet = 1.0f/idet;
 
     Dest->data[0][0] = ( A->data[1][1] * c[5] - A->data[1][2] * c[4] + A->data[1][3] * c[3]) * idet;
     Dest->data[0][1] = (-A->data[0][1] * c[5] + A->data[0][2] * c[4] - A->data[0][3] * c[3]) * idet;
