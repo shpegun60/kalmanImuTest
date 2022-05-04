@@ -49,7 +49,7 @@ KalmanIMUTest::KalmanIMUTest()
 //            float accelBiasVect[3] = {0.0, };
 //            float gyroBiasVect[3] = {0.0, };
 
-    kalman = new KalmanIMU(0.001, gravityConstant, accelBiasVect, gyroBiasVect, 0, Q_init[0], R_init[0]);
+    kalman = new KalmanIMU(0.9, gravityConstant, accelBiasVect, gyroBiasVect, 0, Q_init[0], R_init[0]);
 }
 
 
@@ -161,7 +161,7 @@ void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCP
     }
 
 
-
+    (void)b;
 
     graphX->parentPlot()->replot();
     graphY->parentPlot()->replot();

@@ -332,8 +332,9 @@ int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
         imu->grav_norm[2] = imu->grav[2] * imu->recipNorm;
 
         vecMulCrossAngle(data->a, imu->grav_norm, imu->rotateAxisErr, &imu->angleErr);             // computation vector n_a = a_measured × a_calculated; and ∆θa = acos(a_measured * a_calculated)
-        Quaternion_fromAxisAngle(imu->rotateAxisErr, (imu->angleErr * imu->const_u), &imu->q_ae);  // computation error quaternion q_ae
+        Quaternion_fromAxisAngle(imu->rotateAxisErr, (imu->angleErr * imu->const_u), &imu->q_ae);           // computation error quaternion q_ae
         Quaternion_multiply_to_arrayLN(&imu->q_ae, &imu->q_a, imu->kalman->Z->data);
+        Quaternion_multiply(&imu->q_ae, &imu->q_a, &imu->RES);
 
         // Update R
 //        q0 = imu->kalman->Z->data[0][0];
