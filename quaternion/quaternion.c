@@ -209,7 +209,7 @@ void Quaternion_toEulerZYX(Quaternion* q, float output[3])
 
     // Pitch (y-axis rotation)
     float sinp = +2.0 * (q->w * q->v[1] - q->v[2] * q->v[0]);
-    if (fabs(sinp) >= 1) {
+    if (fabs(sinp) >= 1.0) {
         output[1] = copysign(M_PI / 2, sinp); // use 90 degrees if out of range
     } else {
         output[1] = asin(sinp);
@@ -254,6 +254,26 @@ void Quaternion_normalize(Quaternion* q, Quaternion* output)
             q->v[1] * inverse_len,
             q->v[2] * inverse_len,
             output);
+}
+
+void Quaternion_normalize_vect(float* q0, float* q1, float* q2, float* q3)
+{
+    assert(q0 != NULL || q1 != NULL || q2 != NULL || q3 != NULL);
+
+    float q0_quad = (*q0) * (*q0);
+    float q1_quad = (*q1) * (*q1);
+    float q2_quad = (*q2) * (*q2);
+    float q3_quad = (*q3) * (*q3);
+#ifdef FAST_CALCULATE_INV_SQRT
+    float inverse_len = invSqrt(q0_quad + q1_quad + q2_quad + q3_quad);
+#else
+    float inverse_len = 1.0 / sqrt(q0_quad + q1_quad + q2_quad + q3_quad);
+#endif
+
+    (*q0) = (*q0) * inverse_len;
+    (*q1) = (*q1) * inverse_len;
+    (*q2) = (*q2) * inverse_len;
+    (*q3) = (*q3) * inverse_len;
 }
 
 void Quaternion_multiply(Quaternion* q1, Quaternion* q2, Quaternion* output)

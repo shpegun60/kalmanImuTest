@@ -168,6 +168,7 @@ IMU10Dof* imuCreate(float const_u, float* gravityConstVect, float* accelBiasVect
     imu->angleErr = 0.0f;
     Quaternion_setIdentity(&imu->q_ae);
     Quaternion_setIdentity(&imu->q_a);
+    Quaternion_setIdentity(&imu->q_i);
 
     imu->Tx = 0.0f;
     imu->Ty = 0.0f;
@@ -197,6 +198,12 @@ IMU10Dof* imuCreate(float const_u, float* gravityConstVect, float* accelBiasVect
     imu->J_t = matrixCreate(3, 4);
     imu->Noise_acc = matrixCreate(3, 3);
     imu->NOISE_R_RES = createResultMulMatrix(imu->Noise_acc, imu->J_t);
+
+
+    imu->quat[0] = 1.0f;
+    imu->quat[1] = 0.0f;
+    imu->quat[2] = 0.0f;
+    imu->quat[3] = 0.0f;
     return imu;
 }
 
@@ -237,155 +244,160 @@ __attribute__((unused)) static float accelCalcRoll(float x, float y, float z)
     return -atan2(x, fastSqrt(y * y + z * z));
 }
 
-///////////////////////////////////////////////////////////////////// EXPERIMENTS/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
-{
-    M_Assert_Break((imu == NULL || data == NULL), "imuProceed: vectors is null ptr", return KALMAN_ERR);
-    /*
-     * ***************************************************
-     * Predict step 1
-     * ***************************************************
-     */
+/////////////////////////////////////////////////////////////////////// EXPERIMENTS/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
+//{
+//    M_Assert_Break((imu == NULL || data == NULL), "imuProceed: vectors is null ptr", return KALMAN_ERR);
+//    /*
+//     * ***************************************************
+//     * Predict step 1
+//     * ***************************************************
+//     */
 
-    // update U
-    for (unsigned int i  = 0; i < 3; ++i) {
-        data->a[i] += imu->accelBiasVect[i];
-        data->g[i] += imu->gyroBiasVect[i];
-        imu->kalman->U->data[i][0] = data->a[i] - imu->grav[i];
-        //imu->kalman->U->data[i][0] = (FABS(imu->kalman->U->data[i][0]) < 0.001f) ? 0.0f : imu->kalman->U->data[i][0];
-    }
+//    // update U
+//    for (unsigned int i  = 0; i < 3; ++i) {
+//        data->a[i] += imu->accelBiasVect[i];
+//        data->g[i] += imu->gyroBiasVect[i];
+//        imu->kalman->U->data[i][0] = data->a[i] - imu->grav[i];
+//        //imu->kalman->U->data[i][0] = (FABS(imu->kalman->U->data[i][0]) < 0.001f) ? 0.0f : imu->kalman->U->data[i][0];
+//    }
 
-    // update F, F_t
-    imu->kalman->F_t->data[5][4] = imu->kalman->F->data[4][5] = imu->kalman->F_t->data[3][2]
-            = imu->kalman->F->data[2][3] = imu->kalman->F_t->data[1][0] = imu->kalman->F->data[0][1]
-            = data->dt;
+//    // update F, F_t
+//    imu->kalman->F_t->data[5][4] = imu->kalman->F->data[4][5] = imu->kalman->F_t->data[3][2]
+//            = imu->kalman->F->data[2][3] = imu->kalman->F_t->data[1][0] = imu->kalman->F->data[0][1]
+//            = data->dt;
 
-    imu->halfT = 0.5f * data->dt;
-    imu->Tx = imu->halfT * data->g[0];
-    imu->Ty = imu->halfT * data->g[1];
-    imu->Tz = imu->halfT * data->g[2];
+//    imu->halfT = 0.5f * data->dt;
+//    imu->Tx = imu->halfT * data->g[0];
+//    imu->Ty = imu->halfT * data->g[1];
+//    imu->Tz = imu->halfT * data->g[2];
 
-    imu->kalman->F_t->data[6][7] = imu->kalman->F->data[7][6] = imu->kalman->F_t->data[9][8] = imu->kalman->F->data[8][9] = imu->Tx;
-    imu->kalman->F_t->data[6][8] = imu->kalman->F->data[8][6] = imu->kalman->F_t->data[7][9] = imu->kalman->F->data[9][7] = imu->Ty;
-    imu->kalman->F_t->data[8][7] = imu->kalman->F->data[7][8] = imu->kalman->F_t->data[6][9] = imu->kalman->F->data[9][6] = imu->Tz;
+//    imu->kalman->F_t->data[6][7] = imu->kalman->F->data[7][6] = imu->kalman->F_t->data[9][8] = imu->kalman->F->data[8][9] = imu->Tx;
+//    imu->kalman->F_t->data[6][8] = imu->kalman->F->data[8][6] = imu->kalman->F_t->data[7][9] = imu->kalman->F->data[9][7] = imu->Ty;
+//    imu->kalman->F_t->data[8][7] = imu->kalman->F->data[7][8] = imu->kalman->F_t->data[6][9] = imu->kalman->F->data[9][6] = imu->Tz;
 
-    imu->kalman->F_t->data[7][6] = imu->kalman->F->data[6][7] = imu->kalman->F_t->data[8][9] = imu->kalman->F->data[9][8] = -imu->Tx;
-    imu->kalman->F_t->data[8][6] = imu->kalman->F->data[6][8] = imu->kalman->F_t->data[9][7] = imu->kalman->F->data[7][9] = -imu->Ty;
-    imu->kalman->F_t->data[9][6] = imu->kalman->F->data[6][9] = imu->kalman->F_t->data[7][8] = imu->kalman->F->data[8][7] = -imu->Tz;
-
-
-    // update G
-    imu->kalman->G->data[4][2] = imu->kalman->G->data[2][1] = imu->kalman->G->data[0][0] = (data->dt * data->dt) * 0.5f;
-    imu->kalman->G->data[5][2] = imu->kalman->G->data[3][1] = imu->kalman->G->data[1][0] = data->dt;
+//    imu->kalman->F_t->data[7][6] = imu->kalman->F->data[6][7] = imu->kalman->F_t->data[8][9] = imu->kalman->F->data[9][8] = -imu->Tx;
+//    imu->kalman->F_t->data[8][6] = imu->kalman->F->data[6][8] = imu->kalman->F_t->data[9][7] = imu->kalman->F->data[7][9] = -imu->Ty;
+//    imu->kalman->F_t->data[9][6] = imu->kalman->F->data[6][9] = imu->kalman->F_t->data[7][8] = imu->kalman->F->data[8][7] = -imu->Tz;
 
 
-    // Update Q
-    float q0 = imu->kalman->X_est->data[6][0];
-    float q1 = imu->kalman->X_est->data[7][0];
-    float q2 = imu->kalman->X_est->data[8][0];
-    float q3 = imu->kalman->X_est->data[9][0];
+//    // update G
+//    imu->kalman->G->data[4][2] = imu->kalman->G->data[2][1] = imu->kalman->G->data[0][0] = (data->dt * data->dt) * 0.5f;
+//    imu->kalman->G->data[5][2] = imu->kalman->G->data[3][1] = imu->kalman->G->data[1][0] = data->dt;
 
-    imu->G_t->data[2][2] = imu->G->data[2][2] = imu->G_t->data[0][0] = imu->G->data[0][0] = q1;
-    imu->G_t->data[0][3] = imu->G->data[3][0] = imu->G_t->data[1][0] = imu->G->data[0][1] = q2;
-    imu->G_t->data[1][1] = imu->G->data[1][1] = imu->G_t->data[2][0] = imu->G->data[0][2] = q3;
 
-    imu->G_t->data[2][3] = imu->G->data[3][2] = imu->G_t->data[1][2] = imu->G->data[2][1] = imu->G_t->data[0][1] = imu->G->data[1][0] = -q0;
-    imu->G_t->data[1][3] = imu->G->data[3][1] = -q1;
-    imu->G_t->data[2][1] = imu->G->data[1][2] = -q2;
-    imu->G_t->data[0][2] = imu->G->data[2][0] = -q3;
-    imu->constT_4 = (data->dt * data->dt) * 0.25f;
+//    // Update Q
+//    float q0 = imu->kalman->X_est->data[6][0];
+//    float q1 = imu->kalman->X_est->data[7][0];
+//    float q2 = imu->kalman->X_est->data[8][0];
+//    float q3 = imu->kalman->X_est->data[9][0];
 
-    multiply(imu->Noise, imu->G_t, imu->NOISE_RES);
-    multiply(imu->G, imu->NOISE_RES, imu->Q_quat);
-    scalarmultiply(imu->Q_quat, imu->Q_quat, imu->constT_4);
+//    imu->G_t->data[2][2] = imu->G->data[2][2] = imu->G_t->data[0][0] = imu->G->data[0][0] = q1;
+//    imu->G_t->data[0][3] = imu->G->data[3][0] = imu->G_t->data[1][0] = imu->G->data[0][1] = q2;
+//    imu->G_t->data[1][1] = imu->G->data[1][1] = imu->G_t->data[2][0] = imu->G->data[0][2] = q3;
 
-    for(unsigned int i = 0; i < imu->Q_quat->row; ++i) {
-        for(unsigned int j = 0; j < imu->Q_quat->col; ++j) {
-           imu->kalman->Q->data[6 + i][6 + j] = imu->Q_quat->data[i][j];
-        }
-    }
+//    imu->G_t->data[2][3] = imu->G->data[3][2] = imu->G_t->data[1][2] = imu->G->data[2][1] = imu->G_t->data[0][1] = imu->G->data[1][0] = -q0;
+//    imu->G_t->data[1][3] = imu->G->data[3][1] = -q1;
+//    imu->G_t->data[2][1] = imu->G->data[1][2] = -q2;
+//    imu->G_t->data[0][2] = imu->G->data[2][0] = -q3;
+//    imu->constT_4 = (data->dt * data->dt) * 0.25f;
 
-    kalmanPredict(imu->kalman);
+//    multiply(imu->Noise, imu->G_t, imu->NOISE_RES);
+//    multiply(imu->G, imu->NOISE_RES, imu->Q_quat);
+//    scalarmultiply(imu->Q_quat, imu->Q_quat, imu->constT_4);
 
-    /*
-     * ***************************************************
-     * Update Step 2
-     * ***************************************************
-     */
-
-    // first type of update --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-////////    //    // normalize accel
-        imu->recipNorm = invSqrt(data->a[0] * data->a[0] + data->a[1] * data->a[1] + data->a[2] * data->a[2]);
-        data->a[0] *= imu->recipNorm;
-        data->a[1] *= imu->recipNorm;
-        data->a[2] *= imu->recipNorm;
-
-//        for(unsigned i = 0; i < imu->Noise_acc->col; ++i) {
-//            imu->Noise_acc->data[i][i] = 0.0015f * (imu->recipNorm * imu->recipNorm);
+//    for(unsigned int i = 0; i < imu->Q_quat->row; ++i) {
+//        for(unsigned int j = 0; j < imu->Q_quat->col; ++j) {
+//           imu->kalman->Q->data[6 + i][6 + j] = imu->Q_quat->data[i][j];
 //        }
+//    }
 
-        // normalize gravitation
-        imu->recipNorm = invSqrt(imu->grav[0] * imu->grav[0] + imu->grav[1] * imu->grav[1] + imu->grav[2] * imu->grav[2]);
-        imu->grav_norm[0] = imu->grav[0] * imu->recipNorm;
-        imu->grav_norm[1] = imu->grav[1] * imu->recipNorm;
-        imu->grav_norm[2] = imu->grav[2] * imu->recipNorm;
+//    kalmanPredict(imu->kalman);
 
-        vecMulCrossAngle(data->a, imu->grav_norm, imu->rotateAxisErr, &imu->angleErr);             // computation vector n_a = a_measured × a_calculated; and ∆θa = acos(a_measured * a_calculated)
-        Quaternion_fromAxisAngle(imu->rotateAxisErr, (imu->angleErr * imu->const_u), &imu->q_ae);           // computation error quaternion q_ae
-        Quaternion_multiply_to_arrayLN(&imu->q_ae, &imu->q_a, imu->kalman->Z->data);
-        Quaternion_multiply(&imu->q_ae, &imu->q_a, &imu->RES);
+//    Quaternion_normalize_vect(&imu->kalman->X_pred->data[6][0], &imu->kalman->X_pred->data[7][0], &imu->kalman->X_pred->data[8][0], &imu->kalman->X_pred->data[9][0]);
 
-        // Update R
-//        q0 = imu->kalman->Z->data[0][0];
-//        q1 = imu->kalman->Z->data[1][0];
-//        q2 = imu->kalman->Z->data[2][0];
-//        q3 = imu->kalman->Z->data[3][0];
+//    /*
+//     * ***************************************************
+//     * Update Step 2
+//     * ***************************************************
+//     */
 
-//        imu->J_t->data[0][0] = imu->J->data[0][0] = fabs(q2) > 0.0 ? -1.0 *(1.0 /(2.0 * q2)) : 0.0;
-//        imu->J_t->data[1][0] = imu->J->data[0][1] = fabs(q1) > 0.0 ? (1.0 /(2.0 * q1)) : 0.0;
-//        imu->J_t->data[2][0] = imu->J->data[0][2] = fabs(sqrt(data->a[2] + q1*q1 + q2*q2 - q3*q3)) > 0.0 ? (1.0 /(2.0 * sqrt(data->a[2] + q1*q1 + q2*q2 - q3*q3))) : 0.0;
+//    // first type of update --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-//        imu->J_t->data[0][1] = imu->J->data[1][0] = fabs(q3) > 0.0 ? (1.0 /(2.0 * q3)) : 0.0;
-//        imu->J_t->data[1][1] = imu->J->data[1][1] = fabs(q0) > 0.0 ? (1.0 /(2.0 * q0)) : 0.0;
-//        imu->J_t->data[2][1] = imu->J->data[1][2] = fabs(sqrt(data->a[2] - q0*q0 + q2*q2 - q3*q3)) > 0.0 ? -1.0 * (1.0 /(2.0 * sqrt(data->a[2] - q0*q0 + q2*q2 - q3*q3))) : 0.0;
+//////////    //    // normalize accel
+//        imu->recipNorm = invSqrt(data->a[0] * data->a[0] + data->a[1] * data->a[1] + data->a[2] * data->a[2]);
+//        data->a[0] *= imu->recipNorm;
+//        data->a[1] *= imu->recipNorm;
+//        data->a[2] *= imu->recipNorm;
 
-//        imu->J_t->data[0][2] = imu->J->data[2][0] = fabs(q0) > 0.0 ? -1.0 *(1.0 /(2.0 * q0)) : 0.0;
-//        imu->J_t->data[1][2] = imu->J->data[2][1] = fabs(q3) > 0.0 ? (1.0 /(2.0 * q3)) : 0.0;
-//        imu->J_t->data[2][2] = imu->J->data[2][2] = fabs(sqrt(data->a[2] - q0*q0 + q1*q1 - q3*q3)) > 0.0 ? -1.0 * (1.0 /(2.0 * sqrt(data->a[2] - q0*q0 + q1*q1 - q3*q3))) : 0.0;
+////        for(unsigned i = 0; i < imu->Noise_acc->col; ++i) {
+////            imu->Noise_acc->data[i][i] = 0.0015f * (imu->recipNorm * imu->recipNorm);
+////        }
 
-//        imu->J_t->data[0][3] = imu->J->data[3][0] = fabs(q1) > 0.0 ? (1.0 /(2.0 * q1)) : 0.0;
-//        imu->J_t->data[1][3] = imu->J->data[3][1] = fabs(q2) > 0.0 ? (1.0 /(2.0 * q2)) : 0.0;
-//        imu->J_t->data[2][3] = imu->J->data[3][2] = fabs(sqrt(data->a[2] - q0*q0 + q1*q1 - q2*q2)) > 0.0 ?(1.0 /(2.0 * sqrt(data->a[2] - q0*q0 + q1*q1 - q2*q2))) : 0.0;
+//        // normalize gravitation
+//        Quaternion_set(imu->kalman->X_pred->data[6][0], imu->kalman->X_pred->data[7][0], imu->kalman->X_pred->data[8][0], imu->kalman->X_pred->data[9][0], &imu->q_a); // qk
+//        computeGravVector(imu->kalman->X_pred->data[6][0], imu->kalman->X_pred->data[7][0], imu->kalman->X_pred->data[8][0], imu->kalman->X_pred->data[9][0], imu->grav, imu->calibrationGrav); // a_calculated
+//        imu->recipNorm = invSqrt(imu->grav[0] * imu->grav[0] + imu->grav[1] * imu->grav[1] + imu->grav[2] * imu->grav[2]);
+//        imu->grav_norm[0] = imu->grav[0] * imu->recipNorm;
+//        imu->grav_norm[1] = imu->grav[1] * imu->recipNorm;
+//        imu->grav_norm[2] = imu->grav[2] * imu->recipNorm;
 
-//        multiply(imu->Noise_acc, imu->J_t, imu->NOISE_R_RES);
-//        multiply(imu->J, imu->NOISE_R_RES, imu->kalman->R);
-        //showmat(imu->kalman->R, "matrix R:");
+//        vecMulCrossAngle(data->a, imu->grav_norm, imu->rotateAxisErr, &imu->angleErr);             // computation vector n_a = a_measured × a_calculated; and ∆θa = acos(a_measured * a_calculated)
+//        Quaternion_fromAxisAngle(imu->rotateAxisErr, (imu->angleErr), &imu->q_ae);           // computation error quaternion q_ae
+//        Quaternion_normalize(&imu->q_ae, &imu->q_ae);
+//        Quaternion_multiply_to_arrayLN(&imu->q_ae, &imu->q_a, imu->kalman->Z->data);
+//        Quaternion_multiply(&imu->q_ae, &imu->q_a, &imu->RES);
+
+//        // Update R
+////        q0 = imu->kalman->Z->data[0][0];
+////        q1 = imu->kalman->Z->data[1][0];
+////        q2 = imu->kalman->Z->data[2][0];
+////        q3 = imu->kalman->Z->data[3][0];
+
+////        imu->J_t->data[0][0] = imu->J->data[0][0] = fabs(q2) > 0.0 ? -1.0 *(1.0 /(2.0 * q2)) : 0.0;
+////        imu->J_t->data[1][0] = imu->J->data[0][1] = fabs(q1) > 0.0 ? (1.0 /(2.0 * q1)) : 0.0;
+////        imu->J_t->data[2][0] = imu->J->data[0][2] = fabs(sqrt(data->a[2] + q1*q1 + q2*q2 - q3*q3)) > 0.0 ? (1.0 /(2.0 * sqrt(data->a[2] + q1*q1 + q2*q2 - q3*q3))) : 0.0;
+
+////        imu->J_t->data[0][1] = imu->J->data[1][0] = fabs(q3) > 0.0 ? (1.0 /(2.0 * q3)) : 0.0;
+////        imu->J_t->data[1][1] = imu->J->data[1][1] = fabs(q0) > 0.0 ? (1.0 /(2.0 * q0)) : 0.0;
+////        imu->J_t->data[2][1] = imu->J->data[1][2] = fabs(sqrt(data->a[2] - q0*q0 + q2*q2 - q3*q3)) > 0.0 ? -1.0 * (1.0 /(2.0 * sqrt(data->a[2] - q0*q0 + q2*q2 - q3*q3))) : 0.0;
+
+////        imu->J_t->data[0][2] = imu->J->data[2][0] = fabs(q0) > 0.0 ? -1.0 *(1.0 /(2.0 * q0)) : 0.0;
+////        imu->J_t->data[1][2] = imu->J->data[2][1] = fabs(q3) > 0.0 ? (1.0 /(2.0 * q3)) : 0.0;
+////        imu->J_t->data[2][2] = imu->J->data[2][2] = fabs(sqrt(data->a[2] - q0*q0 + q1*q1 - q3*q3)) > 0.0 ? -1.0 * (1.0 /(2.0 * sqrt(data->a[2] - q0*q0 + q1*q1 - q3*q3))) : 0.0;
+
+////        imu->J_t->data[0][3] = imu->J->data[3][0] = fabs(q1) > 0.0 ? (1.0 /(2.0 * q1)) : 0.0;
+////        imu->J_t->data[1][3] = imu->J->data[3][1] = fabs(q2) > 0.0 ? (1.0 /(2.0 * q2)) : 0.0;
+////        imu->J_t->data[2][3] = imu->J->data[3][2] = fabs(sqrt(data->a[2] - q0*q0 + q1*q1 - q2*q2)) > 0.0 ?(1.0 /(2.0 * sqrt(data->a[2] - q0*q0 + q1*q1 - q2*q2))) : 0.0;
+
+////        multiply(imu->Noise_acc, imu->J_t, imu->NOISE_R_RES);
+////        multiply(imu->J, imu->NOISE_R_RES, imu->kalman->R);
+//        //showmat(imu->kalman->R, "matrix R:");
 
 
 
-        kalmanUpdate(imu->kalman);
+//        kalmanUpdate(imu->kalman);
 
-//    //    // second type of update --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-//    float e0[3] = {0, };
-//    e0[0] = accelCalcPitch(data->a[0],data->a[1],data->a[2]);
-//    e0[1] = accelCalcRoll(data->a[0],data->a[1],data->a[2]);
-//    e0[2] = 0;
-//    Quaternion_fromEulerZYX(e0, &imu->q_ae);
-//    imu->kalman->Z->data[0][0] = imu->q_ae.w;
-//    imu->kalman->Z->data[1][0] = imu->q_ae.v[0];
-//    imu->kalman->Z->data[2][0] = imu->q_ae.v[1];
-//    imu->kalman->Z->data[3][0] = imu->q_ae.v[2];
-//    kalmanUpdate(imu->kalman);
-    //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+////    //    // second type of update --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+////    float e0[3] = {0, };
+////    e0[0] = accelCalcPitch(data->a[0],data->a[1],data->a[2]);
+////    e0[1] = accelCalcRoll(data->a[0],data->a[1],data->a[2]);
+////    e0[2] = 0;
+////    Quaternion_fromEulerZYX(e0, &imu->q_ae);
+////    imu->kalman->Z->data[0][0] = imu->q_ae.w;
+////    imu->kalman->Z->data[1][0] = imu->q_ae.v[0];
+////    imu->kalman->Z->data[2][0] = imu->q_ae.v[1];
+////    imu->kalman->Z->data[3][0] = imu->q_ae.v[2];
+////    kalmanUpdate(imu->kalman);
+//    //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-    computeGravVector(imu->kalman->X_est->data[6][0], imu->kalman->X_est->data[7][0], imu->kalman->X_est->data[8][0], imu->kalman->X_est->data[9][0], imu->grav, imu->calibrationGrav); // a_calculated
-    Quaternion_set(imu->kalman->X_est->data[6][0], imu->kalman->X_est->data[7][0], imu->kalman->X_est->data[8][0], imu->kalman->X_est->data[9][0], &imu->q_a); // qk
-    //Quaternion_set(imu->kalman->Z->data[0][0], imu->kalman->Z->data[1][0], imu->kalman->Z->data[2][0], imu->kalman->Z->data[3][0], &imu->RES); // qk
-    return KALMAN_OK;
-}
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//    computeGravVector(imu->kalman->X_est->data[6][0], imu->kalman->X_est->data[7][0], imu->kalman->X_est->data[8][0], imu->kalman->X_est->data[9][0], imu->grav, imu->calibrationGrav); // a_calculated
+//    Quaternion_set(imu->kalman->X_est->data[6][0], imu->kalman->X_est->data[7][0], imu->kalman->X_est->data[8][0], imu->kalman->X_est->data[9][0], &imu->q_a); // qk
+//    //Quaternion_set(imu->kalman->Z->data[0][0], imu->kalman->Z->data[1][0], imu->kalman->Z->data[2][0], imu->kalman->Z->data[3][0], &imu->RES); // qk
+//    return KALMAN_OK;
+//}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 //int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
@@ -477,7 +489,7 @@ int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
 
 
 
-//*************************************************************************************************************************************************************************************************************
+////*************************************DIRECT QUAT************************************************************************************************************************************************************************
 //int imuProceed(IMU10Dof* imu, IMUinput * data) // only quaternion generate from gyroscope
 //{
 
@@ -485,20 +497,61 @@ int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
 //    imu->Tx = imu->halfT * data->g[0];
 //    imu->Ty = imu->halfT * data->g[1];
 //    imu->Tz = imu->halfT * data->g[2];
-//    imu->quat[0] = imu->quat[0] - (imu->Tx * imu->quat[1]) - (imu->Ty * imu->quat[2]) - (imu->Tz * imu->quat[3]);
-//    imu->quat[1] = imu->quat[1] + (imu->Tx * imu->quat[0]) + (imu->Tz * imu->quat[2]) - (imu->Ty * imu->quat[3]);
-//    imu->quat[2] = imu->quat[2] + (imu->Ty * imu->quat[0]) - (imu->Tz * imu->quat[1]) + (imu->Tx * imu->quat[3]);
-//    imu->quat[3] = imu->quat[3] + (imu->Tz * imu->quat[0]) + (imu->Ty * imu->quat[1]) - (imu->Tx * imu->quat[2]);
-//    Quaternion_set(imu->quat[0], imu->quat[1], imu->quat[2], imu->quat[3], &imu->q_a);
+
+////    imu->quat[0] = imu->quat[0] - (imu->Tx * imu->quat[1]) - (imu->Ty * imu->quat[2]) - (imu->Tz * imu->quat[3]);
+////    imu->quat[1] = imu->quat[1] + (imu->Tx * imu->quat[0]) + (imu->Tz * imu->quat[2]) - (imu->Ty * imu->quat[3]);
+////    imu->quat[2] = imu->quat[2] + (imu->Ty * imu->quat[0]) - (imu->Tz * imu->quat[1]) + (imu->Tx * imu->quat[3]);
+////    imu->quat[3] = imu->quat[3] + (imu->Tz * imu->quat[0]) + (imu->Ty * imu->quat[1]) - (imu->Tx * imu->quat[2]);
+////    Quaternion_set(imu->quat[0], imu->quat[1], imu->quat[2], imu->quat[3], &imu->q_a);
 
 
 
-////    Quaternion_set(0.0f, data->g[0], data->g[1], data->g[2], &imu->q_ae);
-////    Quaternion_multiply(&imu->q_a, &imu->q_ae, &imu->RES);
-////    Quaternion_scalar_multiplication(&imu->RES, imu->halfT, &imu->RES);
-////    Quaternion_add(&imu->q_a, &imu->RES, &imu->q_a);
+//    Quaternion_set(0.0f, data->g[0], data->g[1], data->g[2], &imu->q_ae);
+//    Quaternion_multiply(&imu->q_a, &imu->q_ae, &imu->RES);
+//    Quaternion_scalar_multiplication(&imu->RES, imu->halfT, &imu->RES);
+//    Quaternion_add(&imu->q_a, &imu->RES, &imu->q_a);
+//    //Quaternion_normalize(&imu->q_a, &imu->q_a);
 //    return KALMAN_OK;
 //}
+
+
+//**************************INVERSE QUAT***********************************************************************************************************************************************************************************
+//int imuProceed(IMU10Dof* imu, IMUinput * data) // only quaternion generate from gyroscope
+//{
+
+//    //    imu->halfT = -0.5f * data->dt;
+//    //    imu->Tx = imu->halfT * data->g[0];
+//    //    imu->Ty = imu->halfT * data->g[1];
+//    //    imu->Tz = imu->halfT * data->g[2];
+
+//    //    imu->quat[0] = imu->quat[0] - (imu->Tx * imu->quat[1]) - (imu->Ty * imu->quat[2]) - (imu->Tz * imu->quat[3]);
+//    //    imu->quat[1] = imu->quat[1] + (imu->Tx * imu->quat[0]) - (imu->Tz * imu->quat[2]) + (imu->Ty * imu->quat[3]);
+//    //    imu->quat[2] = imu->quat[2] + (imu->Ty * imu->quat[0]) + (imu->Tz * imu->quat[1]) - (imu->Tx * imu->quat[3]);
+//    //    imu->quat[3] = imu->quat[3] + (imu->Tz * imu->quat[0]) - (imu->Ty * imu->quat[1]) + (imu->Tx * imu->quat[2]);
+//    //    Quaternion_set(imu->quat[0], -imu->quat[1], -imu->quat[2], -imu->quat[3], &imu->q_a);
+
+//    imu->halfT = 0.5f * data->dt;
+//    imu->Tx = imu->halfT * data->g[0];
+//    imu->Ty = imu->halfT * data->g[1];
+//    imu->Tz = imu->halfT * data->g[2];
+//    imu->quat[0] = imu->quat[0] + (imu->Tx * imu->quat[1]) + (imu->Ty * imu->quat[2]) + (imu->Tz * imu->quat[3]);
+//    imu->quat[1] = imu->quat[1] - (imu->Tx * imu->quat[0]) + (imu->Tz * imu->quat[2]) - (imu->Ty * imu->quat[3]);
+//    imu->quat[2] = imu->quat[2] - (imu->Ty * imu->quat[0]) - (imu->Tz * imu->quat[1]) + (imu->Tx * imu->quat[3]);
+//    imu->quat[3] = imu->quat[3] - (imu->Tz * imu->quat[0]) + (imu->Ty * imu->quat[1]) - (imu->Tx * imu->quat[2]);
+//    Quaternion_set(imu->quat[0], -imu->quat[1], -imu->quat[2], -imu->quat[3], &imu->q_a);
+
+
+//    //    Quaternion_conjugate(&imu->q_a, &imu->q_a);
+
+//    //    Quaternion_set(0.0f, data->g[0], data->g[1], data->g[2], &imu->q_ae);
+//    //    Quaternion_multiply(&imu->q_ae, &imu->q_a, &imu->RES);
+//    //    Quaternion_scalar_multiplication(&imu->RES, imu->halfT, &imu->RES);
+//    //    Quaternion_add(&imu->q_a, &imu->RES, &imu->q_a);
+
+//    //    Quaternion_conjugate(&imu->q_a, &imu->q_a);
+//    return KALMAN_OK;
+//}
+
 
 
 ////////*************************************************************************************************************************************************************************************************************
@@ -641,4 +694,118 @@ int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
 //    //Quaternion_set(imu->kalman->Z->data[0][0], imu->kalman->Z->data[1][0], imu->kalman->Z->data[2][0], imu->kalman->Z->data[3][0], &imu->RES); // qk
 //    return KALMAN_OK;
 //}
+
+
+
+int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
+{
+    M_Assert_Break((imu == NULL || data == NULL), "imuProceed: vectors is null ptr", return KALMAN_ERR);
+    /*
+     * ***************************************************
+     * Predict step 1
+     * ***************************************************
+     */
+
+    // update U
+    for (unsigned int i  = 0; i < 3; ++i) {
+        data->a[i] += imu->accelBiasVect[i];
+        data->g[i] += imu->gyroBiasVect[i];
+        imu->kalman->U->data[i][0] = data->a[i] - imu->grav[i];
+        //imu->kalman->U->data[i][0] = (FABS(imu->kalman->U->data[i][0]) < 0.001f) ? 0.0f : imu->kalman->U->data[i][0];
+    }
+
+    // update F, F_t
+    imu->kalman->F_t->data[5][4] = imu->kalman->F->data[4][5] = imu->kalman->F_t->data[3][2]
+            = imu->kalman->F->data[2][3] = imu->kalman->F_t->data[1][0] = imu->kalman->F->data[0][1]
+            = data->dt;
+
+    imu->halfT = 0.5f * data->dt;
+    imu->Tx = imu->halfT * data->g[0];
+    imu->Ty = imu->halfT * data->g[1];
+    imu->Tz = imu->halfT * data->g[2];
+
+    imu->kalman->F_t->data[6][7] = imu->kalman->F->data[7][6] = imu->kalman->F_t->data[9][8] = imu->kalman->F->data[8][9] = imu->Tx;
+    imu->kalman->F_t->data[6][8] = imu->kalman->F->data[8][6] = imu->kalman->F_t->data[7][9] = imu->kalman->F->data[9][7] = imu->Ty;
+    imu->kalman->F_t->data[8][7] = imu->kalman->F->data[7][8] = imu->kalman->F_t->data[6][9] = imu->kalman->F->data[9][6] = imu->Tz;
+
+    imu->kalman->F_t->data[7][6] = imu->kalman->F->data[6][7] = imu->kalman->F_t->data[8][9] = imu->kalman->F->data[9][8] = -imu->Tx;
+    imu->kalman->F_t->data[8][6] = imu->kalman->F->data[6][8] = imu->kalman->F_t->data[9][7] = imu->kalman->F->data[7][9] = -imu->Ty;
+    imu->kalman->F_t->data[9][6] = imu->kalman->F->data[6][9] = imu->kalman->F_t->data[7][8] = imu->kalman->F->data[8][7] = -imu->Tz;
+
+
+    // update G
+    imu->kalman->G->data[4][2] = imu->kalman->G->data[2][1] = imu->kalman->G->data[0][0] = (data->dt * data->dt) * 0.5f;
+    imu->kalman->G->data[5][2] = imu->kalman->G->data[3][1] = imu->kalman->G->data[1][0] = data->dt;
+
+
+    // Update Q
+    float q0 = imu->kalman->X_est->data[6][0];
+    float q1 = imu->kalman->X_est->data[7][0];
+    float q2 = imu->kalman->X_est->data[8][0];
+    float q3 = imu->kalman->X_est->data[9][0];
+
+    imu->G_t->data[2][2] = imu->G->data[2][2] = imu->G_t->data[0][0] = imu->G->data[0][0] = q1;
+    imu->G_t->data[0][3] = imu->G->data[3][0] = imu->G_t->data[1][0] = imu->G->data[0][1] = q2;
+    imu->G_t->data[1][1] = imu->G->data[1][1] = imu->G_t->data[2][0] = imu->G->data[0][2] = q3;
+
+    imu->G_t->data[2][3] = imu->G->data[3][2] = imu->G_t->data[1][2] = imu->G->data[2][1] = imu->G_t->data[0][1] = imu->G->data[1][0] = -q0;
+    imu->G_t->data[1][3] = imu->G->data[3][1] = -q1;
+    imu->G_t->data[2][1] = imu->G->data[1][2] = -q2;
+    imu->G_t->data[0][2] = imu->G->data[2][0] = -q3;
+    imu->constT_4 = (data->dt * data->dt) * 0.25f;
+
+    multiply(imu->Noise, imu->G_t, imu->NOISE_RES);
+    multiply(imu->G, imu->NOISE_RES, imu->Q_quat);
+    scalarmultiply(imu->Q_quat, imu->Q_quat, imu->constT_4);
+
+    for(unsigned int i = 0; i < imu->Q_quat->row; ++i) {
+        for(unsigned int j = 0; j < imu->Q_quat->col; ++j) {
+            imu->kalman->Q->data[6 + i][6 + j] = imu->Q_quat->data[i][j];
+        }
+    }
+
+    kalmanPredict(imu->kalman);
+    Quaternion_normalize_vect(&imu->kalman->X_pred->data[6][0], &imu->kalman->X_pred->data[7][0], &imu->kalman->X_pred->data[8][0], &imu->kalman->X_pred->data[9][0]);
+
+    /*
+     * ***************************************************
+     * Update Step 2
+     * ***************************************************
+     */
+
+    // first type of update --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    ////////    //    // normalize accel
+    imu->recipNorm = invSqrt(data->a[0] * data->a[0] + data->a[1] * data->a[1] + data->a[2] * data->a[2]);
+    data->a[0] *= imu->recipNorm;
+    data->a[1] *= imu->recipNorm;
+    data->a[2] *= imu->recipNorm;
+
+
+    Quaternion_set(imu->kalman->X_pred->data[6][0], imu->kalman->X_pred->data[7][0], imu->kalman->X_pred->data[8][0], imu->kalman->X_pred->data[9][0], &imu->q_a); // qk
+    Quaternion_rotate(&imu->q_a, data->a, imu->rotateAxisErr);
+
+
+    Quaternion_set(sqrt((imu->rotateAxisErr[2] + 1.0f) / 2.0), imu->rotateAxisErr[1] / sqrt(2.0 * (imu->rotateAxisErr[2] + 1.0)), -imu->rotateAxisErr[0] / sqrt(2.0 * (imu->rotateAxisErr[2] + 1.0)), 0.0, &imu->q_ae); // delta
+    //    // LERP
+    Quaternion_scalar_multiplication(&imu->q_ae, (imu->const_u), &imu->q_ae);
+    Quaternion_scalar_multiplication(&imu->q_i, (1.0f - imu->const_u), &imu->RES);
+    Quaternion_add(&imu->q_ae, &imu->RES, &imu->q_ae);
+    Quaternion_normalize(&imu->q_ae, &imu->q_ae);
+
+    Quaternion_multiply_to_arrayLN(&imu->q_a, &imu->q_ae, imu->kalman->Z->data);
+    //Quaternion_normalize_vect(&imu->kalman->Z->data[0][0], &imu->kalman->Z->data[1][0], &imu->kalman->Z->data[2][0], &imu->kalman->Z->data[3][0]);
+    Quaternion_multiply(&imu->q_a, &imu->q_ae, &imu->RES);
+
+    kalmanUpdate(imu->kalman);
+
+
+
+    Quaternion_normalize_vect(&imu->kalman->X_est->data[6][0], &imu->kalman->X_est->data[7][0], &imu->kalman->X_est->data[8][0], &imu->kalman->X_est->data[9][0]);
+    computeGravVector(imu->kalman->X_est->data[6][0], imu->kalman->X_est->data[7][0], imu->kalman->X_est->data[8][0], imu->kalman->X_est->data[9][0], imu->grav, imu->calibrationGrav); // a_calculated
+    Quaternion_set(imu->kalman->X_est->data[6][0], imu->kalman->X_est->data[7][0], imu->kalman->X_est->data[8][0], imu->kalman->X_est->data[9][0], &imu->q_a); // qk
+    //Quaternion_set(imu->kalman->Z->data[0][0], imu->kalman->Z->data[1][0], imu->kalman->Z->data[2][0], imu->kalman->Z->data[3][0], &imu->RES); // qk
+    return KALMAN_OK;
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

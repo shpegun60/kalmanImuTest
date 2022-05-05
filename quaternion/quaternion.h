@@ -122,6 +122,7 @@ float Quaternion_norm(Quaternion* q);
  * Normalizes the quaternion.
  */
 void Quaternion_normalize(Quaternion* q, Quaternion* output);
+void Quaternion_normalize_vect(float* q0, float* q1, float* q2, float* q3);
 
 /**
  * Calculates the conjugate of the quaternion: (w, -v)

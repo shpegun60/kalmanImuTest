@@ -36,6 +36,8 @@ typedef struct
 
 
     Quaternion RES;
+    Quaternion q_i;
+    float quat[4];
 
     // to update Q_k------------------------------------------------------
     Mat* Q_quat;
