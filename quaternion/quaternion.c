@@ -160,6 +160,13 @@ float Quaternion_toAxisAngle(Quaternion* q, float output[3])
     return angle;
 }
 
+void Quaternion_betweenAngle(Quaternion* a, Quaternion* b, float* angle)
+{
+    assert(a != NULL || b != NULL || angle != NULL);
+    (*angle) = acos((a->w * b->w) + (a->v[0] * b->v[0]) + (a->v[1] * b->v[1]) + (a->v[2] * b->v[2]));
+}
+
+
 void Quaternion_fromXRotation(float angle, Quaternion* output)
 {
     assert(output != NULL);
@@ -397,12 +404,40 @@ void Quaternion_slerp(Quaternion* q1, Quaternion* q2, float t, Quaternion* outpu
     }
 
     // Calculate Quaternion
-    float ratioA = sin((1 - t) * halfTheta) * sinHalfTheta;
+    float ratioA = sin((1.0 - t) * halfTheta) * sinHalfTheta;
     float ratioB = sin(t * halfTheta) * sinHalfTheta;
-    result.w = (q1->w * ratioA + q2->w * ratioB);
-    result.v[0] = (q1->v[0] * ratioA + q2->v[0] * ratioB);
-    result.v[1] = (q1->v[1] * ratioA + q2->v[1] * ratioB);
-    result.v[2] = (q1->v[2] * ratioA + q2->v[2] * ratioB);
+
+    result.w    = (q1->w    * ratioA    + q2->w    * ratioB);
+    result.v[0] = (q1->v[0] * ratioA    + q2->v[0] * ratioB);
+    result.v[1] = (q1->v[1] * ratioA    + q2->v[1] * ratioB);
+    result.v[2] = (q1->v[2] * ratioA    + q2->v[2] * ratioB);
 
     *output = result;
 }
+
+
+void Quaternion_lerp(Quaternion* q1, Quaternion* q2, float t, Quaternion* output)
+{
+    Quaternion result;
+
+    // Calculate Quaternion
+    float ratioA = 1.0 - t;
+
+    result.w    = (q1->w    * ratioA     + q2->w    * t);
+    result.v[0] = (q1->v[0] * ratioA     + q2->v[0] * t);
+    result.v[1] = (q1->v[1] * ratioA     + q2->v[1] * t);
+    result.v[2] = (q1->v[2] * ratioA     + q2->v[2] * t);
+
+#ifdef FAST_CALCULATE_INV_SQRT
+    ratioA = invSqrt(result.w*result.w + result.v[0]*result.v[0] + result.v[1]*result.v[1] + result.v[2]*result.v[2]);
+#else
+    ratioA = 1.0 / sqrt(result.w*result.w + result.v[0]*result.v[0] + result.v[1]*result.v[1] + result.v[2]*result.v[2]);
+#endif
+    result.w    *= ratioA;
+    result.v[0] *= ratioA;
+    result.v[1] *= ratioA;
+    result.v[2] *= ratioA;
+
+    *output = result;
+}
+

@@ -41,13 +41,13 @@ KalmanIMUTest::KalmanIMUTest()
         {0, 0,  0,  sR}
     };
 
-    float gravityConstant[3] = {9.8f, 9.8f, 9.8f};
-    float accelBiasVect[3] = {2.63679, -0.064461,  -0.330342};
-    float gyroBiasVect[3] = {-0.000133188, 2.54972e-05, -9.72103e-06};
+    float gravityConstant[3] = {-9.8f, -9.8f, -9.8f};
+    //float accelBiasVect[3] = {2.63679, -0.064461,  -0.330342};
+    //float gyroBiasVect[3] = {-0.000133188, 2.54972e-05, -9.72103e-06};
 
 
-//            float accelBiasVect[3] = {0.0, };
-//            float gyroBiasVect[3] = {0.0, };
+            float accelBiasVect[3] = {0.0, };
+            float gyroBiasVect[3] = {0.0, };
 
     kalman = new KalmanIMU(0.9, gravityConstant, accelBiasVect, gyroBiasVect, 0, Q_init[0], R_init[0]);
 }

@@ -76,7 +76,7 @@ void Quaternion_fromAxisAngle(float axis[3], float angle, Quaternion* output);
  *      The rotation angle in radians.
  */
 float Quaternion_toAxisAngle(Quaternion* q, float output[3]);
-
+void Quaternion_betweenAngle(Quaternion* a, Quaternion* b, float* angle);
 /**
  * Set the quaternion to the equivalent of euler angles.
  * @param eulerZYX
@@ -153,5 +153,6 @@ void Quaternion_rotate(Quaternion* q, float v[3], float output[3]);
  *      0 is equal with q1, 1 is equal with q2, 0.5 is the middle between q1 and q2.
  */
 void Quaternion_slerp(Quaternion* q1, Quaternion* q2, float t, Quaternion* output);
+void Quaternion_lerp(Quaternion* q1, Quaternion* q2, float t, Quaternion* output);
 
 #endif /* __QUATERNION */
