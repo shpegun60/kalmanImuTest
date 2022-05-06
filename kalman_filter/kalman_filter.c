@@ -5,10 +5,7 @@
 
 KalmanFilter* kalmanCreate(initKalmanFunction userInit, unsigned int x, unsigned int z, unsigned int u)
 {
-#warning bug KalmanFilter: if u == 0 not allocation matrix "DriveMult" although used in Predict step as a buffer
-
     M_Assert_BreakSaveCheck((x == 0 || z == 0), "kalmanCreate: Give me positive values for dimensions genius", return NULL);
-
     KalmanFilter* m = (KalmanFilter*)malloc(sizeof(KalmanFilter));
     M_Assert_BreakSaveCheck((m == NULL), "kalmanCreate: no memory for allocation structure", return NULL);
 
@@ -17,6 +14,7 @@ KalmanFilter* kalmanCreate(initKalmanFunction userInit, unsigned int x, unsigned
     m->P_est = matrixCreate(x, x);  // estimated covariance P[n,n]
 
     ////    * Predict step:
+
     // state prediction
     m->X_pred = matrixCreate(x, 1);                             // X[n+1,n]
     m->F = matrixCreate(x, x);                                  // transition matrix F
@@ -24,11 +22,11 @@ KalmanFilter* kalmanCreate(initKalmanFunction userInit, unsigned int x, unsigned
     if(u == 0) { // if not driving
         m->G = NULL;
         m->U = NULL;
-        m->DriveMult = NULL;
+        m->DriveMultPredict = NULL;
     } else {
         m->G = matrixCreate(x, u);                                  // influence matrix G
         m->U = matrixCreate(u, 1);                                  // drive matrix U_n
-        m->DriveMult = createResultMulMatrix(m->G, m->U);           // result multiplication ==> G * U_n in predict equation
+        m->DriveMultPredict = createResultMulMatrix(m->G, m->U);    // result multiplication ==> G * U_n in predict equation
     }
 
     // covariance prediction
@@ -39,16 +37,17 @@ KalmanFilter* kalmanCreate(initKalmanFunction userInit, unsigned int x, unsigned
     ////    * Update step:
 
     // koefs
-    m->K = matrixCreate(x, z);                     // Koefficients matrix K_n
-    m->K_tmp = matrixCreate(x, z);                 // Matrix equal K_n to save multiplication (P[n,n-1] * H^T)
-    m->S = matrixCreate(z, z);                     // matrix S_n
-    m->S_inv = matrixCreate(z, z);                 // matrix S_n^-1
-    m->R = matrixCreate(z, z);                     // measurments covariance matrix R_n
+    m->K = matrixCreate(x, z);                                                  // Koefficients matrix K_n
+    m->K_tmp = matrixCreate(x, z);                                              // Matrix equal K_n to save multiplication (P[n,n-1] * H^T)
+    m->S = matrixCreate(z, z);                                                  // matrix S_n
+    m->S_inv = matrixCreate(z, z);                                              // matrix S_n^-1
+    m->R = matrixCreate(z, z);                                                  // measurments covariance matrix R_n
     // system state
-    m->H = matrixCreate(z, x);                     // system measurments matrix H
-    m->H_t = createResultTransMatrix(m->H);        // system measurments matrix H^T
-    m->Z = matrixCreate(z, 1);                     // measurments matrix Z_n
-    m->Update_derivative = matrixCreate(z, 1);     // multiplication result matrix ==> (Z_n − H * X[n,n−1]) in system update equaluation
+    m->H = matrixCreate(z, x);                                                  // system measurments matrix H
+    m->H_t = createResultTransMatrix(m->H);                                     // system measurments matrix H^T
+    m->Z = matrixCreate(z, 1);                                                  // measurments matrix Z_n
+    m->Update_derivative = matrixCreate(z, 1);                                  // multiplication result matrix ==> (Z_n − H * X[n,n−1]) in system update equaluation
+    m->DriveMultUpdate = createResultMulMatrix(m->K, m->Update_derivative);     // result multiplication ==> G * U_n in predict equation
     // covariance
     m->KHI = createResultMulMatrix(m->K, m->H);    // multiplication result matrix ==> (I − K_n * H)
     m->I = eye(x);                                 // identity matrix I for estimated covariance update
@@ -64,6 +63,7 @@ KalmanFilter* kalmanCreate(initKalmanFunction userInit, unsigned int x, unsigned
 int kalmanPredict(KalmanFilter* m)
 {
     M_Assert_Break((m == NULL), "kalmanPredict: m is not exists", return KALMAN_ERR);
+    M_Assert_Break((m->G == NULL ||  m->U == NULL || m->DriveMultPredict == NULL), "kalmanPredict: you must call kalmanPredict_withoutDrive function", return KALMAN_ERR);
     /*
     *****************************************
     * Predict step:
@@ -73,9 +73,9 @@ int kalmanPredict(KalmanFilter* m)
     */
 
     // 1)
-    multiply(m->F, m->X_est, m->X_pred);        // F * X[n,n] = X[n+1,n]                // 200
-    multiply(m->G, m->U, m->DriveMult);         // G * U_n = DriveMult                  // 60
-    add(m->X_pred, m->DriveMult, m->X_pred);    // X[n+1,n] = X[n+1,n] + DriveMult      // 10
+    multiply(m->F, m->X_est, m->X_pred);               // F * X[n,n] = X[n+1,n]                // 200
+    multiply(m->G, m->U, m->DriveMultPredict);         // G * U_n = DriveMult                  // 60
+    add(m->X_pred, m->DriveMultPredict, m->X_pred);    // X[n+1,n] = X[n+1,n] + DriveMult      // 10
 
     // 2)
     multiply(m->P_est, m->F_t, m->KHI);         // P[n,n] * F^T = KHI                   //2000
@@ -138,10 +138,10 @@ int kalmanUpdate(KalmanFilter* m)
     multiply(m->K_tmp, m->S_inv, m->K);             // K_tmp * S_n^-1 = K_n                                         // 320
     //showmat(m->K, "matrix K:");
     // 5)
-    multiply(m->H, m->X_pred, m->Update_derivative);            // H * X[n,n−1] = Update_derivative                 // 80
-    sub(m->Z, m->Update_derivative, m->Update_derivative);      // Z_n − Update_derivative = Update_derivative      // 4
-    multiply(m->K, m->Update_derivative, m->DriveMult);         // K_n * Update_derivative = DriveMult              // 80
-    add(m->X_pred, m->DriveMult, m->X_est);                     // X[n,n] = X[n,n−1] + DriveMult
+    multiply(m->H, m->X_pred, m->Update_derivative);                    // H * X[n,n−1] = Update_derivative                 // 80
+    sub(m->Z, m->Update_derivative, m->Update_derivative);              // Z_n − Update_derivative = Update_derivative      // 4
+    multiply(m->K, m->Update_derivative, m->DriveMultUpdate);           // K_n * Update_derivative = DriveMult              // 80
+    add(m->X_pred, m->DriveMultUpdate, m->X_est);                       // X[n,n] = X[n,n−1] + DriveMult
 
     // 6)
     multiply(m->K, m->H, m->KHI);          // K_n * H = KHI                                                         // 800
@@ -161,7 +161,7 @@ void printkalman(KalmanFilter* m)
     showmat(m->F, (char *)"F:");
     showmat(m->G, (char *)"G:");
     showmat(m->U, (char *)"U:");
-    showmat(m->DriveMult, (char *)"DriveMult:");
+    showmat(m->DriveMultPredict, (char *)"DriveMultPredict:");
     showmat(m->F_t, (char *)"F_t:");
     showmat(m->P_pred, (char *)"P_pred:");
     showmat(m->Q, (char *)"Q:");
@@ -174,6 +174,7 @@ void printkalman(KalmanFilter* m)
     showmat(m->H_t, (char *)"H_t:");
     showmat(m->Z, (char *)"Z:");
     showmat(m->Update_derivative, (char *)"Update_derivative:");
+    showmat(m->DriveMultUpdate, (char *)"DriveMultUpdate:");
     showmat(m->KHI, (char *)"KHI:");
     showmat(m->I, (char *)"I:");
 }

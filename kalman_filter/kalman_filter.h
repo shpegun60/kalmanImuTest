@@ -60,7 +60,7 @@ typedef struct {
     // drive
     Mat* G;                     // influence matrix G // USER OWERWRITE
     Mat* U;                     // drive matrix U_n   // USER OWERWRITE
-    Mat* DriveMult;             // result multiplication ==> G * U_n in predict equation, and buffer to equaluation update system K_n * (Z_n − H * X[n,n−1])
+    Mat* DriveMultPredict;      // result multiplication ==> G * U_n in predict equation
     // covariance prediction
     Mat* F_t;                   // transition matrix transposed  F^T // USER OWERWRITE
     Mat* P_pred;                // predict covariance matrix P[n+1,n]
@@ -92,6 +92,7 @@ typedef struct {
     Mat* H_t;                   // system measurments matrix H^T
     Mat* Z;                     // measurments matrix Z_n // USER OWERWRITE
     Mat* Update_derivative;     // multiplication result matrix ==> (Z_n − H * X[n,n−1]) in system update equaluation
+    Mat* DriveMultUpdate;       //buffer to equaluation update system K_n * (Z_n − H * X[n,n−1])
     // covariance
     Mat* KHI;                   // multiplication result matrix ==> (I − K_n * H)
     Mat* I;                     // identity matrix I for estimated covariance update

@@ -23,7 +23,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 //    //    // linear acceleration test ---------------------------------------------------------------------------------------
 //    kalmanTest->testQuaternionKalman(alpha, beta, gamma, "Gyroscope.csv", "Accelerometer.csv", LINEAR_ACCERARATION_DATA);
-//    kalmanTest->csvXYZToGraph("LinearAcceleration.csv", alpha_real, beta_real, gamma_real, 1, 1.0f);
+//    kalmanTest->csvXYZToGraph("Magnetometer.csv", alpha_real, beta_real, gamma_real, 1, 1.0f);
     //    //---------------------------------------------------------------------------------------------------------------
 
     /// calibration accel & gyro from file

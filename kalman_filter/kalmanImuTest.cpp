@@ -1,55 +1,50 @@
 #include "kalmanImuTest.h"
 #include <qdebug.h>
 
+
+#define FILTER_ALPHA 0.95f
+
 KalmanIMUTest::KalmanIMUTest()
 {
     test_quaternion();
     //testMatrix();
 
-    float sR = 0.0015;
-    float sQR = 1e-6;
-    float sQx = 0.001;
-    float sQy = 0.001;
-    float sQz = 0.001;
+    IMUInit_struct kalmanInit;
+    kalmanInit.dt_init_sec = 0.0;
+    kalmanInit.accConst_u = 1.0;
+    kalmanInit.magConst_u = 1.0;
 
-    float dt = 1/1000;
+    kalmanInit.gravityConstVect[0] = 9.81;
+    kalmanInit.gravityConstVect[1] = 9.81;
+    kalmanInit.gravityConstVect[2] = 9.81;
 
-    float T11 = (dt * dt * dt * dt) / 4.0;
-    float T12 = (dt * dt * dt) / 2.0;
-    float T21 = (dt * dt * dt) / 2.0;
-    float T22 = (dt * dt);
-
-    float Q_init[10][10] =
-    {
-        {T11 * sQx,     T12 * sQx,              0,                      0,                              0,                          0,                  0,  0,  0,  0},
-        {T21 * sQx,     T22 * sQx,              0,                      0,                              0,                          0,                  0,  0,  0,  0},
-        {0,             0,                      T11 * sQy,              T12 * sQx,                      0,                          0,                  0,  0,  0,  0},
-        {0,             0,                      T21 * sQy,              T22 * sQy,                      0,                          0,                  0,  0,  0,  0},
-        {0,             0,                      0,                      0,                              T11 * sQz,                  T12 * sQz,          0,  0,  0,  0},
-        {0,             0,                      0,                      0,                              T21 * sQz,                  T22 * sQz,          0,  0,  0,  0},
-        {0,             0,                      0,                      0,                              0,                          0,                  sQR,  0,  0,  0},
-        {0,             0,                      0,                      0,                              0,                          0,                  0,  sQR,  0,  0},
-        {0,             0,                      0,                      0,                              0,                          0,                  0,  0,  sQR,  0},
-        {0,             0,                      0,                      0,                              0,                          0,                  0,  0,  0,  sQR}
-    };
-
-    float R_init[4][4] =
-    {
-        {sR, 0,  0,  0},
-        {0, sR,  0,  0},
-        {0, 0,  sR,  0},
-        {0, 0,  0,  sR}
-    };
-
-    float gravityConstant[3] = {-9.8f, -9.8f, -9.8f};
     //float accelBiasVect[3] = {2.63679, -0.064461,  -0.330342};
     //float gyroBiasVect[3] = {-0.000133188, 2.54972e-05, -9.72103e-06};
+    kalmanInit.accelBiasVect[0] = 0.0;
+    kalmanInit.accelBiasVect[1] = 0.0;
+    kalmanInit.accelBiasVect[2] = 0.0;
+
+    kalmanInit.gyroBiasVect[0] = 0.0;
+    kalmanInit.gyroBiasVect[1] = 0.0;
+    kalmanInit.gyroBiasVect[2] = 0.0;
 
 
-            float accelBiasVect[3] = {0.0, };
-            float gyroBiasVect[3] = {0.0, };
+    kalmanInit.gyroVarianceVect[0] = 0.0001;
+    kalmanInit.gyroVarianceVect[1] = 0.0001;
+    kalmanInit.gyroVarianceVect[2] = 0.0001;
 
-    kalman = new KalmanIMU(0.9, gravityConstant, accelBiasVect, gyroBiasVect, 0, Q_init[0], R_init[0]);
+    kalmanInit.accVarianceVect[0] = 0.0001;
+    kalmanInit.accVarianceVect[1] = 0.0001;
+    kalmanInit.accVarianceVect[2] = 0.0001;
+
+    kalmanInit.magVarianceVect[0] = 0.0001;
+    kalmanInit.magVarianceVect[1] = 0.0001;
+    kalmanInit.magVarianceVect[2] = 0.0001;
+
+    kalmanInit.coordinateType = NED;
+
+
+    kalman = new KalmanIMU(&kalmanInit);
 }
 
 
@@ -82,6 +77,9 @@ void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCP
     bool headPass = false;
 
     int b = 0;
+
+    float last_Alpha[3] = {0, 0, 0};
+    float d_alpha[3] = {0, 0, 0};
 
     while (!gyroFile.atEnd() && !accFile.atEnd()) {
         QByteArray accLine = accFile.readLine();
@@ -124,12 +122,29 @@ void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCP
 
         case(ANGLE_DATA):
             Quaternion_toEulerZYX(kalman->getQuaternion(), euler);
-            //ui->qplot1->graph(0)->addData(i, y0[i]);
 
             //kalman->printKalmanTop();
             graphX->addData(t, euler[0] * (180.0f / M_PI));
             graphY->addData(t, euler[1] * (180.0f / M_PI));
             graphZ->addData(t, euler[2] * (180.0f / M_PI));
+            break;
+
+        case(ANGLE_VELOCITY_DATA):
+            Quaternion_toEulerZYX(kalman->getQuaternion(), euler);
+
+            d_alpha[0] = (1.0f - FILTER_ALPHA) * (((euler[0] - last_Alpha[0]) * (180.0f / M_PI)) / (dt / 1000.0)) + FILTER_ALPHA * d_alpha[0];
+            d_alpha[1] = (1.0f - FILTER_ALPHA) * (((euler[1] - last_Alpha[1]) * (180.0f / M_PI)) / (dt / 1000.0)) + FILTER_ALPHA * d_alpha[1];
+            d_alpha[2] = (1.0f - FILTER_ALPHA) * (((euler[2] - last_Alpha[2]) * (180.0f / M_PI)) / (dt / 1000.0)) + FILTER_ALPHA * d_alpha[2];
+
+
+            graphX->addData(t, d_alpha[0]);
+            graphY->addData(t, d_alpha[1]);
+            graphZ->addData(t, d_alpha[2]);
+
+            last_Alpha[0] = euler[0];
+            last_Alpha[1] = euler[1];
+            last_Alpha[2] = euler[2];
+
             break;
 
         case(GRAVITY_DATA): {
@@ -148,16 +163,18 @@ void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCP
             graphY->addData(t, linearAcceleration->data[1][0]);
             graphZ->addData(t, linearAcceleration->data[2][0]);
             break;
+
+
         }
 
         default:
             break;
         }
 
-//        b++;
-//        if(b > 1000 ) {
-//            return;
-//        }
+        //        b++;
+        //        if(b > 1000 ) {
+        //            return;
+        //        }
     }
 
 

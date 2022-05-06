@@ -8,8 +8,10 @@
 
 typedef enum {
     ANGLE_DATA,
+    ANGLE_VELOCITY_DATA,
     GRAVITY_DATA,
     LINEAR_ACCERARATION_DATA
+
 } RequestTests;
 
 

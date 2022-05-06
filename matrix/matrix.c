@@ -97,7 +97,7 @@ int getResultRawSize(Mat* A, Mat* B, unsigned int * resRaw, unsigned int * resCa
 
 Mat *createResultMulMatrix(Mat* A, Mat* B)
 {
-    M_Assert_Break((!A || !B), "createResultMulMatrix: incorrect input values", return NULL);
+    M_Assert_BreakSaveCheck((!A || !B), "createResultMulMatrix: incorrect input values", return NULL);
     unsigned int raw;
     unsigned int coll;
 

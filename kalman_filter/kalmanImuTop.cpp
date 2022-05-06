@@ -1,9 +1,9 @@
 #include "kalmanImuTop.h"
 #include <qdebug.h>
 
-KalmanIMU::KalmanIMU(float const_u, float* gravityConstVect, float* accelBiasVect, float* gyroBiasVect, float dt, float *Q10x10, float *R4x4)
+KalmanIMU::KalmanIMU(IMUInit_struct* init)
 {
-    imu = imuCreate(const_u, gravityConstVect, accelBiasVect, gyroBiasVect, dt, Q10x10, R4x4);
+    imu = imuCreate(init);
     //    /printkalman(imu->kalman);
 }
 
@@ -16,7 +16,7 @@ int KalmanIMU::KalmanIMUProceed(double dt, double ax, double ay, double az, doub
 {
     IMUinput data;
 
-    data.dt = dt;
+    data.dt_sec = dt;
     data.a[0] = ax;
     data.a[1] = ay;
     data.a[2] = az;
