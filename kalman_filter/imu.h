@@ -56,10 +56,9 @@ typedef struct
 } IMUinput;
 
 
-
-typedef struct
+typedef struct IMU IMU10Dof;
+struct IMU
 {
-    GlobalCoordinate coordinateType;
     KalmanFilter* kalman;
     float grav[3];              // result calculated gravity vector
     float accConst_u;           // angle error filtration constant coefficient u for accelerometer (set once at the beginning) Must be: in conditions of static motion >= 0.9, in conditions of dynamic motion <= 0.001
@@ -95,12 +94,19 @@ typedef struct
     Mat* Noise_acc;
     Mat* NOISE_R_RES;
 
-} IMU10Dof;
+
+    void (*accDeltaQuaterFinder) (IMU10Dof* imu, IMUinput * data); // accelerometer delta quaternion finder for choosed coordinates
+
+};
 
 
 
 IMU10Dof* imuCreate(IMUInit_struct* init);
 int imuProceed(IMU10Dof* imu, IMUinput* data);
+
+
+void accDeltaQuaterFinder_NED(IMU10Dof* imu, IMUinput * data);
+void accDeltaQuaterFinder_ENU(IMU10Dof* imu, IMUinput * data);
 
 #endif /* __IMU */
 

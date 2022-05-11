@@ -213,7 +213,12 @@ IMU10Dof* imuCreate(IMUInit_struct* init)
      *
     */
 
-    imu->coordinateType = init->coordinateType;
+    if(init->coordinateType == NED) {
+        imu->accDeltaQuaterFinder = accDeltaQuaterFinder_NED;
+    } else {
+         imu->accDeltaQuaterFinder = accDeltaQuaterFinder_ENU;
+    }
+
     imu->accConst_u = init->accConst_u;
     for(unsigned i = 0; i < 3; ++i) {
         imu->grav[i] = 0.0f;
@@ -299,6 +304,8 @@ __attribute__((unused)) static float accelCalcRoll(float x, float y, float z)
 int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
 {
     M_Assert_Break((imu == NULL || data == NULL), "imuProceed: vectors is null ptr", return KALMAN_ERR);
+    M_Assert_Break((imu->accDeltaQuaterFinder == NULL), "imuProceed: NULL delta quater function", return KALMAN_ERR);
+
     /*
      * ***************************************************
      * Predict step 1
@@ -377,19 +384,7 @@ int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
 
     Quaternion_set(imu->kalman->X_pred->data[6][0], imu->kalman->X_pred->data[7][0], imu->kalman->X_pred->data[8][0], imu->kalman->X_pred->data[9][0], &imu->q_a); // qk
     Quaternion_rotate(&imu->q_a, data->a, imu->rotateAxisErr);
-
-
-
-    if(imu->coordinateType == NED) {
-        //-g system
-        imu->recipNorm = invSqrt(2.0f * (1.0f - imu->rotateAxisErr[2]));
-        Quaternion_set((INV_SQRT_2 * fastSqrt(1.0f - imu->rotateAxisErr[2])), -imu->rotateAxisErr[1] * imu->recipNorm, imu->rotateAxisErr[0] * imu->recipNorm, 0.0f, &imu->q_ae); // delta quater
-    } else {
-        //g system
-        imu->recipNorm = invSqrt(2.0f * (imu->rotateAxisErr[2] + 1.0f));
-        Quaternion_set((INV_SQRT_2 * fastSqrt(imu->rotateAxisErr[2] + 1.0f)), imu->rotateAxisErr[1] * imu->recipNorm, -imu->rotateAxisErr[0] * imu->recipNorm, 0.0f, &imu->q_ae); // delta quater
-    }
-
+    imu->accDeltaQuaterFinder(imu, data);
 
     // filtration
     if(imu->q_ae.w > EPSILON_QUATER) {
@@ -411,7 +406,30 @@ int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
     Quaternion_set(imu->kalman->X_est->data[6][0], imu->kalman->X_est->data[7][0], imu->kalman->X_est->data[8][0], imu->kalman->X_est->data[9][0], &imu->q_a); // qk
     return KALMAN_OK;
 }
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// accelerometer delta quaternion finder for all coordinates --------------------------------------------
+void accDeltaQuaterFinder_NED(IMU10Dof* imu, IMUinput * data)
+{
+    //-g system
+    imu->recipNorm = invSqrt(2.0f * (1.0f - imu->rotateAxisErr[2]));
+    imu->q_ae.w    = (INV_SQRT_2 * fastSqrt(1.0f - imu->rotateAxisErr[2]));
+    imu->q_ae.v[0] = -imu->rotateAxisErr[1] * imu->recipNorm;
+    imu->q_ae.v[1] = imu->rotateAxisErr[0] * imu->recipNorm;
+    imu->q_ae.v[2] = 0.0f;
+    (void)data;
+}
+
+void accDeltaQuaterFinder_ENU(IMU10Dof* imu, IMUinput * data)
+{
+    //g system
+    imu->recipNorm = invSqrt(2.0f * (imu->rotateAxisErr[2] + 1.0f));
+    imu->q_ae.w    = (INV_SQRT_2 * fastSqrt(imu->rotateAxisErr[2] + 1.0f));
+    imu->q_ae.v[0] = imu->rotateAxisErr[1] * imu->recipNorm;
+    imu->q_ae.v[1] = -imu->rotateAxisErr[0] * imu->recipNorm;
+    imu->q_ae.v[2] = 0.0f;
+    (void)data;
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
@@ -504,11 +522,11 @@ int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
 
 
 
-//////*************************************DIRECT QUAT************************************************************************************************************************************************************************
+////////*************************************DIRECT QUAT************************************************************************************************************************************************************************
 //int imuProceed(IMU10Dof* imu, IMUinput * data) // only quaternion generate from gyroscope
 //{
 
-//    imu->halfT = 0.5f * data->dt;
+//    imu->halfT = 0.5f * data->dt_sec;
 //    imu->Tx = imu->halfT * data->g[0];
 //    imu->Ty = imu->halfT * data->g[1];
 //    imu->Tz = imu->halfT * data->g[2];
@@ -522,9 +540,9 @@ int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
 
 
 //    Quaternion_set(0.0f, data->g[0], data->g[1], data->g[2], &imu->q_ae);
-//    Quaternion_multiply(&imu->q_a, &imu->q_ae, &imu->RES);
-//    Quaternion_scalar_multiplication(&imu->RES, imu->halfT, &imu->RES);
-//    Quaternion_add(&imu->q_a, &imu->RES, &imu->q_a);
+//    Quaternion_multiply(&imu->q_a, &imu->q_ae, &imu->q_i);
+//    Quaternion_scalar_multiplication(&imu->q_i, imu->halfT, &imu->q_i);
+//    Quaternion_add(&imu->q_a, &imu->q_i, &imu->q_a);
 //    Quaternion_normalize(&imu->q_a, &imu->q_a);
 //    return KALMAN_OK;
 //}
