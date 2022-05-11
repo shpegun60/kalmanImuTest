@@ -21,7 +21,7 @@ class KalmanIMUTest
 public:
     KalmanIMUTest();
 
-    void testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCPGraph* graphZ, QString gyroFileName, QString accFileName, RequestTests testType);
+    void testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCPGraph* graphZ, QString gyroFileName, QString accFileName, QString magFileName, RequestTests testType);
     void csvXYZToGraph(QString fileName, QCPGraph* graphX,QCPGraph* graphY, QCPGraph* graphZ, quint32 counterStart = 0, double multiplicationConst = 1.0f);
 
     void calibrateAccelGyroFromFile(QCPGraph *accX, QCPGraph *accY, QCPGraph *accZ, QCPGraph *gyroX, QCPGraph *gyroY, QCPGraph *gyroZ, QString gyroFileName, QString accFileName, double gravityConstant, int meanIterations, double acel_deadzone, double gyro_deadzone);

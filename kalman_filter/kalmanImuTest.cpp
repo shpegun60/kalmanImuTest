@@ -12,14 +12,20 @@ KalmanIMUTest::KalmanIMUTest()
     IMUInit_struct kalmanInit;
     kalmanInit.dt_init_sec = 0.0;
     kalmanInit.accConst_u = 1.0;
-    kalmanInit.magConst_u = 1.0;
+    kalmanInit.magConst_u = 0.001;
 
     kalmanInit.gravityConstVect[0] = 9.81;
     kalmanInit.gravityConstVect[1] = 9.81;
     kalmanInit.gravityConstVect[2] = 9.81;
 
-    //float accelBiasVect[3] = {2.63679, -0.064461,  -0.330342};
-    //float gyroBiasVect[3] = {-0.000133188, 2.54972e-05, -9.72103e-06};
+//    kalmanInit.accelBiasVect[0] = 2.63679;
+//    kalmanInit.accelBiasVect[1] = -0.064461;
+//    kalmanInit.accelBiasVect[2] =  -0.330342;
+
+//    kalmanInit.gyroBiasVect[0] = -0.000133188;
+//    kalmanInit.gyroBiasVect[1] = 2.54972e-05;
+//    kalmanInit.gyroBiasVect[2] = -9.72103e-06;
+
     kalmanInit.accelBiasVect[0] = 0.0;
     kalmanInit.accelBiasVect[1] = 0.0;
     kalmanInit.accelBiasVect[2] = 0.0;
@@ -41,7 +47,7 @@ KalmanIMUTest::KalmanIMUTest()
     kalmanInit.magVarianceVect[1] = 0.0001;
     kalmanInit.magVarianceVect[2] = 0.0001;
 
-    kalmanInit.coordinateType = NED;
+    kalmanInit.coordinateType = NED;//ENU;
 
 
     kalman = new KalmanIMU(&kalmanInit);
@@ -49,7 +55,7 @@ KalmanIMUTest::KalmanIMUTest()
 
 
 
-void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCPGraph* graphZ, QString gyroFileName, QString accFileName, RequestTests testType)
+void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCPGraph* graphZ, QString gyroFileName, QString accFileName, QString magFileName, RequestTests testType)
 {
 
     graphX->setName("alpha");
@@ -58,6 +64,7 @@ void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCP
 
     QFile gyroFile(gyroFileName);
     QFile accFile(accFileName);
+    QFile magFile(magFileName);
 
     if (!gyroFile.open(QIODevice::ReadOnly)) {
         qDebug() <<"gyro file not open: "<< gyroFile.errorString();
@@ -66,6 +73,11 @@ void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCP
 
     if (!accFile.open(QIODevice::ReadOnly)) {
         qDebug() <<endl<<"acc file not open: "<< accFile.errorString();
+        return;
+    }
+
+    if (!magFile.open(QIODevice::ReadOnly)) {
+        qDebug() <<endl<<"mag file not open: "<< magFile.errorString();
         return;
     }
 
@@ -81,9 +93,10 @@ void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCP
     float last_Alpha[3] = {0, 0, 0};
     float d_alpha[3] = {0, 0, 0};
 
-    while (!gyroFile.atEnd() && !accFile.atEnd()) {
+    while (!gyroFile.atEnd() && !accFile.atEnd() && !magFile.atEnd()) {
         QByteArray accLine = accFile.readLine();
         QByteArray gyroLine = gyroFile.readLine();
+        QByteArray magLine = magFile.readLine();
 
         if(!headPass) {
             headPass = true;
@@ -92,6 +105,7 @@ void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCP
 
         auto &&accList = accLine.split(',');
         auto &&gyroList = gyroLine.split(',');
+        auto &&magList = magLine.split(',');
 
         if(!timefixed) {
             start_time = gyroList[0].toULongLong(&ok);
@@ -115,7 +129,11 @@ void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCP
         auto gy = gyroList[2].toDouble(&ok);
         auto gz = gyroList[3].toDouble(&ok);
 
-        kalman->KalmanIMUProceed(dt / 1000.0, ax, ay, az, gx, gy, gz, 0, 0, 0);
+        auto mx = magList[1].toDouble(&ok);
+        auto my = magList[2].toDouble(&ok);
+        auto mz = magList[3].toDouble(&ok);
+
+        kalman->KalmanIMUProceed(dt / 1000.0, ax, ay, az, gx, gy, gz, mx, my, mz);
 
 
         switch (testType) {
@@ -186,6 +204,7 @@ void KalmanIMUTest::testQuaternionKalman(QCPGraph* graphX, QCPGraph* graphY, QCP
 
     gyroFile.close();
     accFile.close();
+    magFile.close();
 
 }
 

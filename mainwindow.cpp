@@ -10,19 +10,19 @@ MainWindow::MainWindow(QWidget *parent)
     kalmanTest = new KalmanIMUTest();
 
 //    //        // quaternion test kalman ---------------------------------------------------------------------------------------
-            kalmanTest->testQuaternionKalman(alpha, beta, gamma, "Gyroscope.csv", "Accelerometer.csv", ANGLE_DATA);         // test kalman from files and plot to graph
+            kalmanTest->testQuaternionKalman(alpha, beta, gamma, "Gyroscope.csv", "Accelerometer.csv","Magnetometer.csv", ANGLE_DATA);         // test kalman from files and plot to graph
             kalmanTest->csvXYZToGraph("Rotation.csv", alpha_real, beta_real, gamma_real, 10, (180.0f / M_PI));  // plot real angle data from dataset
     //        //---------------------------------------------------------------------------------------------------------------
 
 
 //    //    // gravity test ---------------------------------------------------------------------------------------
-//    kalmanTest->testQuaternionKalman(alpha, beta, gamma, "Gyroscope.csv", "Accelerometer.csv", GRAVITY_DATA);
+//    kalmanTest->testQuaternionKalman(alpha, beta, gamma, "Gyroscope.csv", "Accelerometer.csv","Magnetometer.csv", GRAVITY_DATA);
 //    kalmanTest->csvXYZToGraph("Accelerometer.csv", alpha_real, beta_real, gamma_real, 1, 1.0f);
     //    //---------------------------------------------------------------------------------------------------------------
 
 
 //    //    // linear acceleration test ---------------------------------------------------------------------------------------
-//    kalmanTest->testQuaternionKalman(alpha, beta, gamma, "Gyroscope.csv", "Accelerometer.csv", LINEAR_ACCERARATION_DATA);
+//    kalmanTest->testQuaternionKalman(alpha, beta, gamma, "Gyroscope.csv", "Accelerometer.csv","Magnetometer.csv", LINEAR_ACCERARATION_DATA);
 //    kalmanTest->csvXYZToGraph("Magnetometer.csv", alpha_real, beta_real, gamma_real, 1, 1.0f);
     //    //---------------------------------------------------------------------------------------------------------------
 

@@ -215,8 +215,10 @@ IMU10Dof* imuCreate(IMUInit_struct* init)
 
     if(init->coordinateType == NED) {
         imu->accDeltaQuaterFinder = accDeltaQuaterFinder_NED;
+        imu->magDeltaQuaterFinder = magDeltaQuaterFinder_NED;
     } else {
-         imu->accDeltaQuaterFinder = accDeltaQuaterFinder_ENU;
+        imu->accDeltaQuaterFinder = accDeltaQuaterFinder_ENU;
+        imu->magDeltaQuaterFinder = magDeltaQuaterFinder_ENU;
     }
 
     imu->accConst_u = init->accConst_u;
@@ -304,7 +306,7 @@ __attribute__((unused)) static float accelCalcRoll(float x, float y, float z)
 int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
 {
     M_Assert_Break((imu == NULL || data == NULL), "imuProceed: vectors is null ptr", return KALMAN_ERR);
-    M_Assert_Break((imu->accDeltaQuaterFinder == NULL), "imuProceed: NULL delta quater function", return KALMAN_ERR);
+    M_Assert_Break((imu->accDeltaQuaterFinder == NULL || imu->magDeltaQuaterFinder == NULL), "imuProceed: NULL delta quater functions", return KALMAN_ERR);
 
     /*
      * ***************************************************
@@ -395,8 +397,33 @@ int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
         Quaternion_slerp(&imu->q_i, &imu->q_ae, imu->accConst_u, &imu->q_ae);
     }
 
-    Quaternion_multiply_to_arrayLN(&imu->q_a, &imu->q_ae, imu->kalman->Z->data);
+    Quaternion_multiply(&imu->q_a, &imu->q_ae, &imu->q_a);
+    //Quaternion_multiply_to_arrayLN(&imu->q_a, &imu->q_ae, imu->kalman->Z->data);
     //Quaternion_multiply(&imu->q_a, &imu->q_ae, &imu->RES);
+
+    ////////    //    // normalize magnetometer
+    imu->recipNorm = invSqrt(data->m[0] * data->m[0] + data->m[1] * data->m[1] + data->m[2] * data->m[2]);
+    data->m[0] *= imu->recipNorm;
+    data->m[1] *= imu->recipNorm;
+    data->m[2] *= imu->recipNorm;
+
+
+    Quaternion_rotate(&imu->q_a, data->m, imu->rotateAxisErr);
+
+    imu->magDeltaQuaterFinder(imu, data);
+
+    //        // filtration
+    //        if(imu->q_ae.w > EPSILON_QUATER) {
+    //            // LERP
+    //            Quaternion_lerp(&imu->q_i, &imu->q_ae, 0.11, &imu->q_ae);
+    //        } else {
+    //            //SLERP
+    //            Quaternion_slerp(&imu->q_i, &imu->q_ae, 0.11, &imu->q_ae);
+    //        }
+
+    Quaternion_multiply_to_arrayLN(&imu->q_a, &imu->q_ae, imu->kalman->Z->data);
+    Quaternion_multiply(&imu->q_a, &imu->q_ae, &imu->RES);
+
 
     kalmanUpdate(imu->kalman);
 
@@ -408,7 +435,7 @@ int imuProceed(IMU10Dof* imu, IMUinput * data) // original kalman fusion
 }
 
 // accelerometer delta quaternion finder for all coordinates --------------------------------------------
-void accDeltaQuaterFinder_NED(IMU10Dof* imu, IMUinput * data)
+void accDeltaQuaterFinder_NED(IMU10Dof* imu, IMUinput * data) // NED gravity vector G = [0, 0, -1]
 {
     //-g system
     imu->recipNorm = invSqrt(2.0f * (1.0f - imu->rotateAxisErr[2]));
@@ -419,7 +446,7 @@ void accDeltaQuaterFinder_NED(IMU10Dof* imu, IMUinput * data)
     (void)data;
 }
 
-void accDeltaQuaterFinder_ENU(IMU10Dof* imu, IMUinput * data)
+void accDeltaQuaterFinder_ENU(IMU10Dof* imu, IMUinput * data) // ENU gravity vector G = [0, 0,  1]
 {
     //g system
     imu->recipNorm = invSqrt(2.0f * (imu->rotateAxisErr[2] + 1.0f));
@@ -427,6 +454,49 @@ void accDeltaQuaterFinder_ENU(IMU10Dof* imu, IMUinput * data)
     imu->q_ae.v[0] = imu->rotateAxisErr[1] * imu->recipNorm;
     imu->q_ae.v[1] = -imu->rotateAxisErr[0] * imu->recipNorm;
     imu->q_ae.v[2] = 0.0f;
+    (void)data;
+}
+
+// magnetometer delta quaternion finder for all coordinates --------------------------------------------
+void magDeltaQuaterFinder_NED(IMU10Dof* imu, IMUinput * data) // NED geomagnetic field vector R = [mN, 0, mD]
+{
+    float G = imu->rotateAxisErr[0]*imu->rotateAxisErr[0] + imu->rotateAxisErr[1]*imu->rotateAxisErr[1] + 0.0001;
+    float G_k = fastSqrt(G);
+    float tmp = fastSqrt(G + (imu->rotateAxisErr[0] * G_k));
+
+    imu->q_ae.w    = tmp * invSqrt(2.0f * G);
+    imu->q_ae.v[0] = 0.0f;
+    imu->q_ae.v[1] = 0.0f;
+    imu->q_ae.v[2] = -imu->rotateAxisErr[1] * INV_SQRT_2 * invSqrt(tmp * tmp);
+
+    //    // hard version
+//        float G = imu->rotateAxisErr[0]*imu->rotateAxisErr[0] + imu->rotateAxisErr[1]*imu->rotateAxisErr[1] + 0.0001;
+//        imu->q_ae.w    = -imu->rotateAxisErr[1] * pow(G, -0.1e1 / 0.2e1) * pow(-0.2e1 * (sqrt(G) * imu->rotateAxisErr[0] - G) / G, -0.1e1 / 0.2e1);
+//        imu->q_ae.v[0] = 0.0f;
+//        imu->q_ae.v[1] = 0.0f;
+//        imu->q_ae.v[2] = sqrt(-0.2e1 * (sqrt(G) * imu->rotateAxisErr[0] - G) / G) / 0.2e1;
+
+    (void)data;
+}
+
+void magDeltaQuaterFinder_ENU(IMU10Dof* imu, IMUinput * data) // ENU geomagnetic field vector R = [0, mN, -mD]
+{
+    float G = imu->rotateAxisErr[0]*imu->rotateAxisErr[0] + imu->rotateAxisErr[1]*imu->rotateAxisErr[1];
+    float G_k = fastSqrt(G);
+    float G_k_inv = invSqrt(G);
+
+    imu->q_ae.v[2] = fastSqrt(G - imu->rotateAxisErr[1] * G_k) * invSqrt(2.0f * G);
+    imu->q_ae.w    = imu->rotateAxisErr[0] * invSqrt(imu->q_ae.v[2] * imu->q_ae.v[2]) * 0.5f * G_k_inv;
+    imu->q_ae.v[0] = 0.0f;
+    imu->q_ae.v[1] = 0.0f;
+
+    //    // hard version
+    //    float G = imu->rotateAxisErr[0]*imu->rotateAxisErr[0] + imu->rotateAxisErr[1]*imu->rotateAxisErr[1];
+    //    imu->q_ae.v[2] = sqrt(-0.2e1 * (imu->rotateAxisErr[1] * sqrt(G) - G) / G) / 0.2e1;
+    //    imu->q_ae.w    = imu->rotateAxisErr[0] * pow(G, -0.1e1 / 0.2e1) * pow(-0.2e1 * (imu->rotateAxisErr[1] * sqrt(G) - G) / G, -0.1e1 / 0.2e1);
+    //    imu->q_ae.v[0] = 0.0f;
+    //    imu->q_ae.v[1] = 0.0f;
+
     (void)data;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -19,8 +19,12 @@ There are two main global reference frames based on the local tangent plane:
     if ENU gravity vector G = [0, 0,  1]
 
 
-    if NED geomagnetic field vector R = [??????]
-    if ENU geomagnetic field vector R = [??????]
+    if NED geomagnetic field vector R = [mN, 0, mD]
+    if ENU geomagnetic field vector R = [0, mN, -mD]
+
+    mN -> north magnetic field
+    mD -> down magnetic field
+    -mD -> up magnetic field(-DOWN = UP)
 */
 
 typedef enum {
@@ -96,7 +100,8 @@ struct IMU
 
 
     void (*accDeltaQuaterFinder) (IMU10Dof* imu, IMUinput * data); // accelerometer delta quaternion finder for choosed coordinates
-
+    void (*magDeltaQuaterFinder) (IMU10Dof* imu, IMUinput * data); // accelerometer delta quaternion finder for choosed coordinates
+    Quaternion RES;
 };
 
 
@@ -104,9 +109,13 @@ struct IMU
 IMU10Dof* imuCreate(IMUInit_struct* init);
 int imuProceed(IMU10Dof* imu, IMUinput* data);
 
-
+// accelerometer delta quaternion finder for all coordinates --------------------------------------------
 void accDeltaQuaterFinder_NED(IMU10Dof* imu, IMUinput * data);
 void accDeltaQuaterFinder_ENU(IMU10Dof* imu, IMUinput * data);
+
+// magnetometer delta quaternion finder for all coordinates --------------------------------------------
+void magDeltaQuaterFinder_NED(IMU10Dof* imu, IMUinput * data);
+void magDeltaQuaterFinder_ENU(IMU10Dof* imu, IMUinput * data);
 
 #endif /* __IMU */
 
