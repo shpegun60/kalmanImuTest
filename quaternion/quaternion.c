@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
+#include "smart_assert.h"
 
 //-------------------------------------------------------------------------------------------
 // Fast inverse square-root
@@ -88,7 +89,7 @@ float fastSqrt(const float n)
 
 void Quaternion_set(float w, float v1, float v2, float v3, Quaternion* output)
 {
-    assert(output != NULL);
+    M_Assert_Break((output == NULL), "Quaternion_set: NULL", return);
     output->w = w;
     output->v[0] = v1;
     output->v[1] = v2;
@@ -97,17 +98,19 @@ void Quaternion_set(float w, float v1, float v2, float v3, Quaternion* output)
 
 void Quaternion_setIdentity(Quaternion* q)
 {
-    assert(q != NULL);
+    M_Assert_Break((q == NULL), "Quaternion_setIdentity: NULL", return);
     Quaternion_set(1.0f, 0.0f, 0.0f, 0.0f, q);
 }
 
 void Quaternion_copy(Quaternion* q, Quaternion* output)
 {
+    M_Assert_Break((q == NULL || output == NULL), "Quaternion_setIdentity: NULL", return);
     Quaternion_set(q->w, q->v[0], q->v[1], q->v[2], output);
 }
 
 bool Quaternion_equal(Quaternion* q1, Quaternion* q2)
 {
+    M_Assert_Break((q1 == NULL || q2 == NULL), "Quaternion_equal: NULL", return 0);
     bool equalW  = fabs(q1->w - q2->w) <= QUATERNION_EPS;
     bool equalV0 = fabs(q1->v[0] - q2->v[0]) <= QUATERNION_EPS;
     bool equalV1 = fabs(q1->v[1] - q2->v[1]) <= QUATERNION_EPS;
@@ -117,6 +120,7 @@ bool Quaternion_equal(Quaternion* q1, Quaternion* q2)
 
 void Quaternion_fprint(FILE* file, Quaternion* q)
 {
+    M_Assert_Break((file == NULL || q == NULL), "Quaternion_fprint: NULL", return);
     fprintf(file, "(%.3f, %.3f, %.3f, %.3f)",
             q->w, q->v[0], q->v[1], q->v[2]);
 }
@@ -124,7 +128,7 @@ void Quaternion_fprint(FILE* file, Quaternion* q)
 
 void Quaternion_fromAxisAngle(float axis[3], float angle, Quaternion* output)
 {
-    assert(output != NULL);
+    M_Assert_Break((output == NULL), "Quaternion_fromAxisAngle: NULL", return);
     // Formula from http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/
     output->w = cos(angle * 0.5f);
     float c = sin(angle * 0.5f);
@@ -136,7 +140,7 @@ void Quaternion_fromAxisAngle(float axis[3], float angle, Quaternion* output)
 
 float Quaternion_toAxisAngle(Quaternion* q, float output[3])
 {
-    assert(output != NULL);
+    M_Assert_Break((output == NULL || q == NULL), "Quaternion_toAxisAngle: NULL", return 0.0);
     // Formula from http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/
     float angle = 2.0f * acos(q->w);
 
@@ -162,35 +166,35 @@ float Quaternion_toAxisAngle(Quaternion* q, float output[3])
 
 void Quaternion_betweenAngle(Quaternion* a, Quaternion* b, float* angle)
 {
-    assert(a != NULL || b != NULL || angle != NULL);
+    M_Assert_Break((a == NULL || b == NULL || angle == NULL), "Quaternion_betweenAngle: NULL", return);
     (*angle) = acos((a->w * b->w) + (a->v[0] * b->v[0]) + (a->v[1] * b->v[1]) + (a->v[2] * b->v[2]));
 }
 
 
 void Quaternion_fromXRotation(float angle, Quaternion* output)
 {
-    assert(output != NULL);
+    M_Assert_Break((output == NULL ), "Quaternion_fromXRotation: NULL", return);
     float axis[3] = {1.0f, 0.0f, 0.0f};
     Quaternion_fromAxisAngle(axis, angle, output);
 }
 
 void Quaternion_fromYRotation(float angle, Quaternion* output)
 {
-    assert(output != NULL);
+    M_Assert_Break((output == NULL ), "Quaternion_fromYRotation: NULL", return);
     float axis[3] = {0.0f, 1.0f, 0.0f};
     Quaternion_fromAxisAngle(axis, angle, output);
 }
 
 void Quaternion_fromZRotation(float angle, Quaternion* output)
 {
-    assert(output != NULL);
+    M_Assert_Break((output == NULL ), "Quaternion_fromZRotation: NULL", return);
     float axis[3] = {0.0f, 0.0f, 1.0f};
     Quaternion_fromAxisAngle(axis, angle, output);
 }
 
 void Quaternion_fromEulerZYX(float eulerZYX[3], Quaternion* output)
 {
-    assert(output != NULL);
+   M_Assert_Break((output == NULL || eulerZYX == NULL), "Quaternion_fromEulerZYX: NULL", return);
     // Based on https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
     float cy = cos(eulerZYX[2] * 0.5f);
     float sy = sin(eulerZYX[2] * 0.5f);
@@ -207,7 +211,7 @@ void Quaternion_fromEulerZYX(float eulerZYX[3], Quaternion* output)
 
 void Quaternion_toEulerZYX(Quaternion* q, float output[3])
 {
-    assert(output != NULL);
+    M_Assert_Break((output == NULL || q == NULL), "Quaternion_toEulerZYX: NULL", return);
 
     // Roll (x-axis rotation)
     float sinr_cosp = +2.0f * (q->w * q->v[0] + q->v[1] * q->v[2]);
@@ -230,7 +234,7 @@ void Quaternion_toEulerZYX(Quaternion* q, float output[3])
 
 void Quaternion_conjugate(Quaternion* q, Quaternion* output)
 {
-    assert(output != NULL);
+    M_Assert_Break((output == NULL || q == NULL), "Quaternion_conjugate: NULL", return);
     output->w = q->w;
     output->v[0] = -q->v[0];
     output->v[1] = -q->v[1];
@@ -239,7 +243,7 @@ void Quaternion_conjugate(Quaternion* q, Quaternion* output)
 
 float Quaternion_norm(Quaternion* q)
 {
-    assert(q != NULL);
+    M_Assert_Break((q == NULL), "Quaternion_norm: NULL", return 0.0f);
 #ifdef FAST_CALCULATE_INV_SQRT
     return fastSqrt(q->w*q->w + q->v[0]*q->v[0] + q->v[1]*q->v[1] + q->v[2]*q->v[2]);
 #else
@@ -249,7 +253,7 @@ float Quaternion_norm(Quaternion* q)
 
 void Quaternion_normalize(Quaternion* q, Quaternion* output)
 {
-    assert(output != NULL);
+    M_Assert_Break((output == NULL || q == NULL), "Quaternion_normalize: NULL", return);
 #ifdef FAST_CALCULATE_INV_SQRT
     float inverse_len = invSqrt(q->w*q->w + q->v[0]*q->v[0] + q->v[1]*q->v[1] + q->v[2]*q->v[2]);
 #else
@@ -258,14 +262,14 @@ void Quaternion_normalize(Quaternion* q, Quaternion* output)
     Quaternion_set(
                 q->w * inverse_len,
                 q->v[0] * inverse_len,
-                q->v[1] * inverse_len,
-                q->v[2] * inverse_len,
-                output);
+            q->v[1] * inverse_len,
+            q->v[2] * inverse_len,
+            output);
 }
 
 void Quaternion_normalize_vect(float* q0, float* q1, float* q2, float* q3)
 {
-    assert(q0 != NULL || q1 != NULL || q2 != NULL || q3 != NULL);
+    M_Assert_Break((q0 == NULL || q1 == NULL || q2 == NULL || q3 == NULL), "Quaternion_normalize_vect: NULL", return);
 
     float q0_quad = (*q0) * (*q0);
     float q1_quad = (*q1) * (*q1);
@@ -285,7 +289,7 @@ void Quaternion_normalize_vect(float* q0, float* q1, float* q2, float* q3)
 
 void Quaternion_multiply(Quaternion* q1, Quaternion* q2, Quaternion* output)
 {
-    assert(output != NULL);
+    M_Assert_Break((q1 == NULL || q2 == NULL || output == NULL), "Quaternion_multiply: NULL", return);
     Quaternion result;
 
     /*
@@ -305,7 +309,7 @@ void Quaternion_multiply(Quaternion* q1, Quaternion* q2, Quaternion* output)
 
 void Quaternion_multiply_to_arrayLN(Quaternion* q1, Quaternion* q2, float** output)
 {
-    assert(output != NULL);
+     M_Assert_Break((q1 == NULL || q2 == NULL || output == NULL), "Quaternion_multiply_to_arrayLN: NULL", return);
 
     /*
     Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/arithmetic/index.htm
@@ -322,6 +326,7 @@ void Quaternion_multiply_to_arrayLN(Quaternion* q1, Quaternion* q2, float** outp
 
 void Quaternion_scalar_multiplication(Quaternion* q, float s, Quaternion* Dest)
 {
+    M_Assert_Break((q == NULL || Dest == NULL), "Quaternion_scalar_multiplication: NULL", return);
     Dest->w     = q->w    * s;
     Dest->v[0]  = q->v[0] * s;
     Dest->v[1]  = q->v[1] * s;
@@ -330,6 +335,7 @@ void Quaternion_scalar_multiplication(Quaternion* q, float s, Quaternion* Dest)
 
 void Quaternion_add(Quaternion *a, Quaternion *b, Quaternion *Dest)
 {
+    M_Assert_Break((a == NULL || b == NULL || Dest == NULL), "Quaternion_add: NULL", return);
     Dest->w     = a->w    + b->w   ;
     Dest->v[0]  = a->v[0] + b->v[0];
     Dest->v[1]  = a->v[1] + b->v[1];
@@ -338,7 +344,7 @@ void Quaternion_add(Quaternion *a, Quaternion *b, Quaternion *Dest)
 
 void Quaternion_rotate(Quaternion* q, float v[3], float output[3])
 {
-    assert(output != NULL);
+    M_Assert_Break((output == NULL || v == NULL || q == NULL), "Quaternion_rotate: NULL", return);
     float result[3];
 
     float ww = q->w * q->w;
@@ -375,6 +381,7 @@ void Quaternion_rotate(Quaternion* q, float v[3], float output[3])
 
 void Quaternion_slerp(Quaternion* q1, Quaternion* q2, float t, Quaternion* output)
 {
+    M_Assert_Break((q1 == NULL || q2 == NULL || output == NULL), "Quaternion_slerp: NULL", return);
     Quaternion result;
 
     // Based on http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/index.htm
@@ -418,6 +425,7 @@ void Quaternion_slerp(Quaternion* q1, Quaternion* q2, float t, Quaternion* outpu
 
 void Quaternion_lerp(Quaternion* q1, Quaternion* q2, float t, Quaternion* output)
 {
+    M_Assert_Break((q1 == NULL || q2 == NULL || output == NULL), "Quaternion_lerp: NULL", return);
     Quaternion result;
 
     // Calculate Quaternion

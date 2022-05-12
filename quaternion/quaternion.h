@@ -32,6 +32,10 @@ typedef struct {
 } Quaternion;
 
 
+//-------------------------------------------------------------------------------------------
+// Fast inverse square-root
+// See: http://en.wikipedia.org/wiki/Fast_inverse_square_root
+// Source code of Quake III Arena
 float invSqrt(const float x);
 float fastSqrt(const float n);
 /**

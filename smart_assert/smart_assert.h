@@ -46,11 +46,15 @@ void __M_Warning(const char* expr_str, unsigned char expr, const char* file, int
 
 
 #define PRINT_ONCE(...) ({ \
-                        static bool __printed = 0; \
+                        static int __printed = 0; \
                         if(!__printed) { \
                             printf(__VA_ARGS__); \
                             __printed=1; \
                         } \
                         })
+
+#ifndef NULL
+    #define NULL ((void *)0)
+#endif
 
 #endif // __SMART_ASSERT

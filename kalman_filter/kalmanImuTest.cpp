@@ -12,7 +12,7 @@ KalmanIMUTest::KalmanIMUTest()
     IMUInit_struct kalmanInit;
     kalmanInit.dt_init_sec = 0.0;
     kalmanInit.accConst_u = 1.0;
-    kalmanInit.magConst_u = 0.001;
+    kalmanInit.magConst_u = 1.0;
 
     kalmanInit.gravityConstVect[0] = 9.81;
     kalmanInit.gravityConstVect[1] = 9.81;

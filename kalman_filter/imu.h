@@ -66,6 +66,7 @@ struct IMU
     KalmanFilter* kalman;
     float grav[3];              // result calculated gravity vector
     float accConst_u;           // angle error filtration constant coefficient u for accelerometer (set once at the beginning) Must be: in conditions of static motion >= 0.9, in conditions of dynamic motion <= 0.001
+    float magConst_u;
     float calibrationGrav[3];   // calibration gravity constant on all axes (set once at the beginning)
     float accelBiasVect[3];   // acceleration bias vector
     float gyroBiasVect[3];   // gyroscope bias vector
